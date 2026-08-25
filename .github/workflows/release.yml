@@ -1,0 +1,44 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  create-release:
+    name: Create Release & Package Binaries
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Build Release Binary
+        run: cargo build --release --manifest-path src-tauri/Cargo.toml
+
+      - name: Prepare Release Artifact
+        run: |
+          mkdir -p release-artifacts
+          cp src-tauri/target/release/microfinance-core release-artifacts/scryme-micro-linux-amd64 || cp src-tauri/target/release/microfinance_core release-artifacts/scryme-micro-linux-amd64
+          cd release-artifacts && tar -czvf scryme-micro-linux-amd64.tar.gz scryme-micro-linux-amd64
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-artifacts/scryme-micro-linux-amd64.tar.gz
+          name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

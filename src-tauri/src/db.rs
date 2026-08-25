@@ -1,6 +1,6 @@
+use crate::models::{Borrower, DashboardStats, Loan, LoanProduct, ScheduleItem, Transaction};
+use chrono::{Datelike, Local, NaiveDate};
 use rusqlite::{params, Connection, Result};
-use chrono::{Local, NaiveDate, Datelike};
-use crate::models::{Borrower, LoanProduct, Loan, ScheduleItem, Transaction, DashboardStats};
 
 pub fn init_db(conn: &Connection) -> Result<()> {
     conn.execute_batch(
@@ -95,7 +95,7 @@ pub fn init_db(conn: &Connection) -> Result<()> {
         CREATE INDEX IF NOT EXISTS idx_loans_product ON loans(loan_product_id);
         CREATE INDEX IF NOT EXISTS idx_schedule_loan ON schedule_items(loan_id);
         CREATE INDEX IF NOT EXISTS idx_transactions_loan ON transactions(loan_id);
-        "
+        ",
     )?;
 
     seed_default_data(conn)?;
@@ -115,7 +115,8 @@ fn seed_default_data(conn: &Connection) -> Result<()> {
         )?;
     }
 
-    let borrower_count: i64 = conn.query_row("SELECT COUNT(*) FROM borrowers", [], |row| row.get(0))?;
+    let borrower_count: i64 =
+        conn.query_row("SELECT COUNT(*) FROM borrowers", [], |row| row.get(0))?;
     if borrower_count == 0 {
         conn.execute(
             "INSERT INTO borrowers (first_name, last_name, email, phone, national_id, address, credit_score, status)
@@ -244,13 +245,15 @@ pub fn calculate_loan_schedule(
     term_months: i32,
     interest_method: &str,
     start_date: &str,
-) -> Vec<(i32, String, f64, f64, f64)> { // (installment_no, due_date, principal, interest, total)
+) -> Vec<(i32, String, f64, f64, f64)> {
+    // (installment_no, due_date, principal, interest, total)
     let mut schedule = Vec::new();
     if principal <= 0.0 || term_months <= 0 {
         return schedule;
     }
 
-    let base_date = NaiveDate::parse_from_str(start_date, "%Y-%m-%d").unwrap_or_else(|_| Local::now().date_naive());
+    let base_date = NaiveDate::parse_from_str(start_date, "%Y-%m-%d")
+        .unwrap_or_else(|_| Local::now().date_naive());
     let safe_rate = annual_rate.max(0.0);
 
     if interest_method == "FLAT_RATE" {
@@ -260,8 +263,16 @@ pub fn calculate_loan_schedule(
         let total_per_month = principal_per_month + interest_per_month;
 
         for i in 1..=term_months {
-            let due_date = add_months(base_date, i as u32).format("%Y-%m-%d").to_string();
-            schedule.push((i, due_date, (principal_per_month * 100.0).round() / 100.0, (interest_per_month * 100.0).round() / 100.0, (total_per_month * 100.0).round() / 100.0));
+            let due_date = add_months(base_date, i as u32)
+                .format("%Y-%m-%d")
+                .to_string();
+            schedule.push((
+                i,
+                due_date,
+                (principal_per_month * 100.0).round() / 100.0,
+                (interest_per_month * 100.0).round() / 100.0,
+                (total_per_month * 100.0).round() / 100.0,
+            ));
         }
     } else if interest_method == "REDUCING_BALANCE" {
         let r = (safe_rate / 100.0) / 12.0;
@@ -280,10 +291,16 @@ pub fn calculate_loan_schedule(
         let mut balance = principal;
         for i in 1..=term_months {
             let interest_due = balance * r;
-            let principal_due = if i == term_months { balance } else { emi - interest_due };
+            let principal_due = if i == term_months {
+                balance
+            } else {
+                emi - interest_due
+            };
             balance -= principal_due;
 
-            let due_date = add_months(base_date, i as u32).format("%Y-%m-%d").to_string();
+            let due_date = add_months(base_date, i as u32)
+                .format("%Y-%m-%d")
+                .to_string();
             schedule.push((
                 i,
                 due_date,
@@ -297,7 +314,9 @@ pub fn calculate_loan_schedule(
 
         for i in 1..=term_months {
             let principal_due = if i == term_months { principal } else { 0.0 };
-            let due_date = add_months(base_date, i as u32).format("%Y-%m-%d").to_string();
+            let due_date = add_months(base_date, i as u32)
+                .format("%Y-%m-%d")
+                .to_string();
             schedule.push((
                 i,
                 due_date,
@@ -422,7 +441,12 @@ pub fn create_loan(conn: &Connection, loan: Loan) -> Result<i64> {
     Ok(loan_id)
 }
 
-pub fn update_loan_status(conn: &Connection, loan_id: i64, status: String, notes: Option<String>) -> Result<()> {
+pub fn update_loan_status(
+    conn: &Connection,
+    loan_id: i64,
+    status: String,
+    notes: Option<String>,
+) -> Result<()> {
     let today = Local::now().format("%Y-%m-%d").to_string();
 
     if status == "APPROVED" {
@@ -562,7 +586,10 @@ pub fn record_repayment(
         total_p += p_pay;
         item.principal_paid += p_pay;
 
-        let new_status = if (item.principal_paid >= item.principal_due) && (item.interest_paid >= item.interest_due) && (item.fee_paid >= item.fee_due) {
+        let new_status = if (item.principal_paid >= item.principal_due)
+            && (item.interest_paid >= item.interest_due)
+            && (item.fee_paid >= item.fee_due)
+        {
             "PAID"
         } else {
             "PARTIAL"
@@ -591,7 +618,10 @@ pub fn record_repayment(
     )?;
 
     if unclosed_count == 0 {
-        tx.execute("UPDATE loans SET status='CLOSED' WHERE id=?1", params![loan_id])?;
+        tx.execute(
+            "UPDATE loans SET status='CLOSED' WHERE id=?1",
+            params![loan_id],
+        )?;
     }
 
     tx.commit()?;
@@ -613,18 +643,31 @@ pub fn record_repayment(
 }
 
 pub fn get_dashboard_stats(conn: &Connection) -> Result<DashboardStats> {
-    let total_borrowers: i64 = conn.query_row("SELECT COUNT(*) FROM borrowers", [], |row| row.get(0))?;
-    let total_active_loans: i64 = conn.query_row("SELECT COUNT(*) FROM loans WHERE status='ACTIVE'", [], |row| row.get(0))?;
+    let total_borrowers: i64 =
+        conn.query_row("SELECT COUNT(*) FROM borrowers", [], |row| row.get(0))?;
+    let total_active_loans: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM loans WHERE status='ACTIVE'",
+        [],
+        |row| row.get(0),
+    )?;
     let total_portfolio_value: f64 = conn.query_row("SELECT COALESCE(SUM(principal_amount), 0.0) FROM loans WHERE status IN ('ACTIVE', 'OVERDUE')", [], |row| row.get(0))?;
-    
+
     let total_payable: f64 = conn.query_row("SELECT COALESCE(SUM(total_installment), 0.0) FROM schedule_items s JOIN loans l ON s.loan_id = l.id WHERE l.status IN ('ACTIVE', 'OVERDUE')", [], |row| row.get(0))?;
     let total_paid: f64 = conn.query_row("SELECT COALESCE(SUM(principal_paid + interest_paid + fee_paid), 0.0) FROM schedule_items s JOIN loans l ON s.loan_id = l.id WHERE l.status IN ('ACTIVE', 'OVERDUE')", [], |row| row.get(0))?;
     let total_outstanding_balance = (total_payable - total_paid).max(0.0);
 
-    let total_collected_revenue: f64 = conn.query_row("SELECT COALESCE(SUM(amount), 0.0) FROM transactions", [], |row| row.get(0))?;
+    let total_collected_revenue: f64 = conn.query_row(
+        "SELECT COALESCE(SUM(amount), 0.0) FROM transactions",
+        [],
+        |row| row.get(0),
+    )?;
 
     let overdue_loans_count: i64 = conn.query_row("SELECT COUNT(DISTINCT loan_id) FROM schedule_items WHERE status='OVERDUE' OR (status IN ('PENDING', 'PARTIAL') AND due_date < date('now'))", [], |row| row.get(0))?;
-    let pending_approvals_count: i64 = conn.query_row("SELECT COUNT(*) FROM loans WHERE status='PENDING_APPROVAL'", [], |row| row.get(0))?;
+    let pending_approvals_count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM loans WHERE status='PENDING_APPROVAL'",
+        [],
+        |row| row.get(0),
+    )?;
 
     let par_30 = if total_portfolio_value > 0.0 {
         (overdue_loans_count as f64 / (total_active_loans.max(1) as f64)) * 100.0
