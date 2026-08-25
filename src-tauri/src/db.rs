@@ -90,6 +90,11 @@ pub fn init_db(conn: &Connection) -> Result<()> {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (loan_id) REFERENCES loans(id)
         );
+
+        CREATE INDEX IF NOT EXISTS idx_loans_borrower ON loans(borrower_id);
+        CREATE INDEX IF NOT EXISTS idx_loans_product ON loans(loan_product_id);
+        CREATE INDEX IF NOT EXISTS idx_schedule_loan ON schedule_items(loan_id);
+        CREATE INDEX IF NOT EXISTS idx_transactions_loan ON transactions(loan_id);
         "
     )?;
 
@@ -241,10 +246,15 @@ pub fn calculate_loan_schedule(
     start_date: &str,
 ) -> Vec<(i32, String, f64, f64, f64)> { // (installment_no, due_date, principal, interest, total)
     let mut schedule = Vec::new();
+    if principal <= 0.0 || term_months <= 0 {
+        return schedule;
+    }
+
     let base_date = NaiveDate::parse_from_str(start_date, "%Y-%m-%d").unwrap_or_else(|_| Local::now().date_naive());
+    let safe_rate = annual_rate.max(0.0);
 
     if interest_method == "FLAT_RATE" {
-        let total_interest = principal * (annual_rate / 100.0) * (term_months as f64 / 12.0);
+        let total_interest = principal * (safe_rate / 100.0) * (term_months as f64 / 12.0);
         let principal_per_month = principal / term_months as f64;
         let interest_per_month = total_interest / term_months as f64;
         let total_per_month = principal_per_month + interest_per_month;
@@ -254,10 +264,15 @@ pub fn calculate_loan_schedule(
             schedule.push((i, due_date, (principal_per_month * 100.0).round() / 100.0, (interest_per_month * 100.0).round() / 100.0, (total_per_month * 100.0).round() / 100.0));
         }
     } else if interest_method == "REDUCING_BALANCE" {
-        let r = (annual_rate / 100.0) / 12.0;
+        let r = (safe_rate / 100.0) / 12.0;
         let n = term_months as f64;
         let emi = if r > 0.0 {
-            principal * r * (1.0 + r).powf(n) / ((1.0 + r).powf(n) - 1.0)
+            let factor = (1.0 + r).powf(n);
+            if (factor - 1.0).abs() < f64::EPSILON {
+                principal / n
+            } else {
+                principal * r * factor / (factor - 1.0)
+            }
         } else {
             principal / n
         };
@@ -278,7 +293,7 @@ pub fn calculate_loan_schedule(
             ));
         }
     } else if interest_method == "INTEREST_ONLY" {
-        let interest_per_month = principal * (annual_rate / 100.0) / 12.0;
+        let interest_per_month = principal * (safe_rate / 100.0) / 12.0;
 
         for i in 1..=term_months {
             let principal_due = if i == term_months { principal } else { 0.0 };
@@ -372,7 +387,9 @@ pub fn create_loan(conn: &Connection, loan: Loan) -> Result<i64> {
     let loan_number = format!("LN-{}", Local::now().format("%Y%m%d%H%M%S"));
     let application_date = Local::now().format("%Y-%m-%d").to_string();
 
-    conn.execute(
+    let tx = conn.unchecked_transaction()?;
+
+    tx.execute(
         "INSERT INTO loans (borrower_id, loan_product_id, loan_number, principal_amount, annual_interest_rate, interest_method, term_months, payment_frequency, origination_fee, status, application_date, notes)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 'PENDING_APPROVAL', ?10, ?11)",
         params![
@@ -382,7 +399,7 @@ pub fn create_loan(conn: &Connection, loan: Loan) -> Result<i64> {
         ],
     )?;
 
-    let loan_id = conn.last_insert_rowid();
+    let loan_id = tx.last_insert_rowid();
 
     // Generate schedule
     let schedule = calculate_loan_schedule(
@@ -394,13 +411,14 @@ pub fn create_loan(conn: &Connection, loan: Loan) -> Result<i64> {
     );
 
     for (inst_no, due_date, p_due, i_due, total) in schedule {
-        conn.execute(
+        tx.execute(
             "INSERT INTO schedule_items (loan_id, installment_number, due_date, principal_due, interest_due, fee_due, total_installment, status)
              VALUES (?1, ?2, ?3, ?4, ?5, 0.0, ?6, 'PENDING')",
             params![loan_id, inst_no, due_date, p_due, i_due, total],
         )?;
     }
 
+    tx.commit()?;
     Ok(loan_id)
 }
 
@@ -505,12 +523,15 @@ pub fn record_repayment(
     let receipt_number = format!("REC-{}", Local::now().format("%Y%m%d%H%M%S"));
     let today = Local::now().format("%Y-%m-%d").to_string();
 
-    let mut remaining = amount;
+    let safe_amount = amount.max(0.0);
+    let mut remaining = safe_amount;
     let mut total_p = 0.0;
     let mut total_i = 0.0;
     let mut total_f = 0.0;
 
-    let mut schedule = get_loan_schedule(conn, loan_id)?;
+    let tx = conn.unchecked_transaction()?;
+
+    let mut schedule = get_loan_schedule(&tx, loan_id)?;
 
     for item in &mut schedule {
         if remaining <= 0.0 {
@@ -548,37 +569,39 @@ pub fn record_repayment(
         };
         item.status = new_status.to_string();
 
-        conn.execute(
+        tx.execute(
             "UPDATE schedule_items SET principal_paid=?1, interest_paid=?2, fee_paid=?3, status=?4, paid_date=?5 WHERE id=?6",
             params![item.principal_paid, item.interest_paid, item.fee_paid, item.status, today, item.id],
         )?;
     }
 
-    conn.execute(
+    tx.execute(
         "INSERT INTO transactions (loan_id, receipt_number, transaction_date, amount, principal_component, interest_component, fee_component, payment_method, reference, notes)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
-        params![loan_id, receipt_number, today, amount, total_p, total_i, total_f, payment_method, reference, notes],
+        params![loan_id, receipt_number, today, safe_amount, total_p, total_i, total_f, payment_method, reference, notes],
     )?;
 
-    let tx_id = conn.last_insert_rowid();
+    let tx_id = tx.last_insert_rowid();
 
     // Check if entire loan is fully paid
-    let unclosed_count: i64 = conn.query_row(
+    let unclosed_count: i64 = tx.query_row(
         "SELECT COUNT(*) FROM schedule_items WHERE loan_id=?1 AND status != 'PAID'",
         params![loan_id],
         |row| row.get(0),
     )?;
 
     if unclosed_count == 0 {
-        conn.execute("UPDATE loans SET status='CLOSED' WHERE id=?1", params![loan_id])?;
+        tx.execute("UPDATE loans SET status='CLOSED' WHERE id=?1", params![loan_id])?;
     }
+
+    tx.commit()?;
 
     Ok(Transaction {
         id: Some(tx_id),
         loan_id,
         receipt_number,
         transaction_date: today,
-        amount,
+        amount: safe_amount,
         principal_component: total_p,
         interest_component: total_i,
         fee_component: total_f,
