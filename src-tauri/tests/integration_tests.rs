@@ -47,7 +47,13 @@ fn test_database_lifecycle_integration() {
     assert_eq!(schedule[0].status, "PENDING");
 
     // Approve loan
-    update_loan_status(&conn, loan_id, "APPROVED".to_string(), Some("Approved by Admin".to_string())).unwrap();
+    update_loan_status(
+        &conn,
+        loan_id,
+        "APPROVED".to_string(),
+        Some("Approved by Admin".to_string()),
+    )
+    .unwrap();
     let loans = get_all_loans(&conn, None).unwrap();
     let approved_loan = loans.iter().find(|l| l.id == Some(loan_id)).unwrap();
     assert_eq!(approved_loan.status, "APPROVED");
@@ -60,7 +66,15 @@ fn test_database_lifecycle_integration() {
 
     // Record repayment
     let installment_total = schedule[0].total_installment;
-    let tx = record_repayment(&conn, loan_id, installment_total, "CASH".to_string(), "REF-1001".to_string(), "First monthly installment".to_string()).unwrap();
+    let tx = record_repayment(
+        &conn,
+        loan_id,
+        installment_total,
+        "CASH".to_string(),
+        "REF-1001".to_string(),
+        "First monthly installment".to_string(),
+    )
+    .unwrap();
     assert_eq!(tx.amount, installment_total);
 
     // Verify schedule updated to PAID
@@ -114,10 +128,21 @@ fn test_full_repayment_and_loan_closure() {
     let total_payable: f64 = schedule.iter().map(|s| s.total_installment).sum();
 
     // Pay full loan balance in single transaction
-    record_repayment(&conn, loan_id, total_payable, "BANK_TRANSFER".to_string(), "PAY-FULL".to_string(), "Full lump-sum settlement".to_string()).unwrap();
+    record_repayment(
+        &conn,
+        loan_id,
+        total_payable,
+        "BANK_TRANSFER".to_string(),
+        "PAY-FULL".to_string(),
+        "Full lump-sum settlement".to_string(),
+    )
+    .unwrap();
 
     let updated_loans = get_all_loans(&conn, None).unwrap();
-    let closed_loan = updated_loans.iter().find(|l| l.id == Some(loan_id)).unwrap();
+    let closed_loan = updated_loans
+        .iter()
+        .find(|l| l.id == Some(loan_id))
+        .unwrap();
     assert_eq!(closed_loan.status, "CLOSED");
     assert_eq!(closed_loan.balance_remaining.unwrap(), 0.0);
 }

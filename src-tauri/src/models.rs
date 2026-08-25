@@ -52,7 +52,7 @@ pub struct Loan {
     pub maturity_date: Option<String>,
     pub notes: Option<String>,
     pub created_at: Option<String>,
-    
+
     // Joined display fields
     pub borrower_name: Option<String>,
     pub product_name: Option<String>,
