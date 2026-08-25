@@ -198,12 +198,17 @@ let mockTransactions: Transaction[] = [
 const isTauri = () => typeof window !== 'undefined' && '__TAURI_IPC__' in window;
 
 async function invokeTauri<T>(command: string, args?: Record<string, unknown>): Promise<T> {
-  if (isTauri()) {
-    const { invoke } = await import('@tauri-apps/api/core');
-    return invoke<T>(command, args);
-  } else {
-    // Return mock fallback for dev server browser preview
-    return mockInvokeFallback<T>(command, args);
+  try {
+    if (isTauri()) {
+      const { invoke } = await import('@tauri-apps/api/core');
+      return await invoke<T>(command, args);
+    } else {
+      // Return mock fallback for dev server browser preview
+      return await mockInvokeFallback<T>(command, args);
+    }
+  } catch (err) {
+    console.error(`API command '${command}' failed:`, err);
+    throw err;
   }
 }
 
@@ -357,11 +362,17 @@ function mockInvokeFallback<T>(command: string, args?: Record<string, unknown>):
           break;
         }
         case 'calculate_preview_schedule_cmd': {
-          const principal = args?.principal as number;
-          const rate = args?.annual_rate as number;
-          const term = args?.term_months as number;
-          const method = args?.interest_method as string;
+          const principal = Math.max(0, (args?.principal as number) || 0);
+          const rate = Math.max(0, (args?.annual_rate as number) || 0);
+          const term = Math.max(0, (args?.term_months as number) || 0);
+          const method = (args?.interest_method as string) || 'FLAT_RATE';
           const items: ScheduleItem[] = [];
+
+          if (principal <= 0 || term <= 0) {
+            resolve(items as unknown as T);
+            break;
+          }
+
           const monthlyPrincipal = principal / term;
           const monthlyInterest = (principal * (rate / 100)) / 12;
 

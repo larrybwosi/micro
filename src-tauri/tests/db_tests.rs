@@ -17,3 +17,21 @@ fn test_schedule_calculations() {
     assert_eq!(bullet_schedule[0].2, 0.0);
     assert_eq!(bullet_schedule[11].2, 1000.0);
 }
+
+#[test]
+fn test_edge_case_calculations() {
+    // 0 principal or term
+    let zero_principal = calculate_loan_schedule(0.0, 12.0, 12, "FLAT_RATE", "2026-01-01");
+    assert!(zero_principal.is_empty());
+
+    let zero_term = calculate_loan_schedule(1000.0, 12.0, 0, "FLAT_RATE", "2026-01-01");
+    assert!(zero_term.is_empty());
+
+    // 0 interest rate
+    let zero_rate = calculate_loan_schedule(1200.0, 0.0, 12, "REDUCING_BALANCE", "2026-01-01");
+    assert_eq!(zero_rate.len(), 12);
+    for item in &zero_rate {
+        assert_eq!(item.3, 0.0); // Interest due is 0
+        assert_eq!(item.2, 100.0); // Principal per month
+    }
+}
