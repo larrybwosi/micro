@@ -101,7 +101,7 @@ pub struct User {
     pub username: String,
     pub password: Option<String>,
     pub full_name: String,
-    pub role: String, // "ADMIN" or "USER"
+    pub role: String,   // "ADMIN" or "USER"
     pub status: String, // "Active" or "Inactive"
     pub created_at: Option<String>,
 }

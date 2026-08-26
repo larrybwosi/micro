@@ -10,7 +10,11 @@ struct AppState {
 }
 
 #[tauri::command]
-fn login_cmd(state: State<AppState>, username: String, password: String) -> Result<Option<User>, String> {
+fn login_cmd(
+    state: State<AppState>,
+    username: String,
+    password: String,
+) -> Result<Option<User>, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     authenticate_user(&conn, &username, &password).map_err(|e| e.to_string())
 }
@@ -100,7 +104,10 @@ fn delete_loan_product_cmd(state: State<AppState>, id: i64) -> Result<(), String
 }
 
 #[tauri::command]
-fn get_loans_cmd(state: State<AppState>, status_filter: Option<String>) -> Result<Vec<Loan>, String> {
+fn get_loans_cmd(
+    state: State<AppState>,
+    status_filter: Option<String>,
+) -> Result<Vec<Loan>, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     get_all_loans(&conn, status_filter).map_err(|e| e.to_string())
 }
@@ -112,19 +119,30 @@ fn create_loan_cmd(state: State<AppState>, loan: Loan) -> Result<i64, String> {
 }
 
 #[tauri::command]
-fn update_loan_status_cmd(state: State<AppState>, loan_id: i64, status: String, notes: Option<String>) -> Result<(), String> {
+fn update_loan_status_cmd(
+    state: State<AppState>,
+    loan_id: i64,
+    status: String,
+    notes: Option<String>,
+) -> Result<(), String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     update_loan_status(&conn, loan_id, status, notes).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn get_loan_schedule_cmd(state: State<AppState>, loan_id: i64) -> Result<Vec<ScheduleItem>, String> {
+fn get_loan_schedule_cmd(
+    state: State<AppState>,
+    loan_id: i64,
+) -> Result<Vec<ScheduleItem>, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     get_loan_schedule(&conn, loan_id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn get_loan_transactions_cmd(state: State<AppState>, loan_id: i64) -> Result<Vec<Transaction>, String> {
+fn get_loan_transactions_cmd(
+    state: State<AppState>,
+    loan_id: i64,
+) -> Result<Vec<Transaction>, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     get_loan_transactions(&conn, loan_id).map_err(|e| e.to_string())
 }
@@ -139,7 +157,8 @@ fn record_repayment_cmd(
     notes: String,
 ) -> Result<Transaction, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
-    record_repayment(&conn, loan_id, amount, payment_method, reference, notes).map_err(|e| e.to_string())
+    record_repayment(&conn, loan_id, amount, payment_method, reference, notes)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -156,7 +175,13 @@ fn calculate_preview_schedule_cmd(
     interest_method: String,
     start_date: String,
 ) -> Result<Vec<ScheduleItem>, String> {
-    let schedule = calculate_loan_schedule(principal, annual_rate, term_months, &interest_method, &start_date);
+    let schedule = calculate_loan_schedule(
+        principal,
+        annual_rate,
+        term_months,
+        &interest_method,
+        &start_date,
+    );
     let items = schedule
         .into_iter()
         .map(|(inst_no, due_date, p_due, i_due, total)| ScheduleItem {

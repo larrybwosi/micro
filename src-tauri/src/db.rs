@@ -1,4 +1,6 @@
-use crate::models::{Borrower, DashboardStats, Loan, LoanProduct, PlatformSettings, ScheduleItem, Transaction, User};
+use crate::models::{
+    Borrower, DashboardStats, Loan, LoanProduct, PlatformSettings, ScheduleItem, Transaction, User,
+};
 use chrono::{Datelike, Local, NaiveDate};
 use rusqlite::{params, Connection, Result};
 use sha2::{Digest, Sha256};
@@ -136,20 +138,33 @@ fn seed_default_data(conn: &Connection) -> Result<()> {
     }
 
     // Seed default platform settings if platform_settings table is empty
-    let settings_count: i64 = conn.query_row("SELECT COUNT(*) FROM platform_settings", [], |row| row.get(0))?;
+    let settings_count: i64 =
+        conn.query_row("SELECT COUNT(*) FROM platform_settings", [], |row| {
+            row.get(0)
+        })?;
     if settings_count == 0 {
         conn.execute("INSERT INTO platform_settings (key, value) VALUES ('org_name', 'MicroFinance Systems')", [])?;
-        conn.execute("INSERT INTO platform_settings (key, value) VALUES ('currency_symbol', '$')", [])?;
+        conn.execute(
+            "INSERT INTO platform_settings (key, value) VALUES ('currency_symbol', '$')",
+            [],
+        )?;
         conn.execute("INSERT INTO platform_settings (key, value) VALUES ('default_annual_interest_rate', '12.0')", [])?;
         conn.execute("INSERT INTO platform_settings (key, value) VALUES ('default_origination_fee_percent', '1.5')", [])?;
-        conn.execute("INSERT INTO platform_settings (key, value) VALUES ('theme', 'light')", [])?;
+        conn.execute(
+            "INSERT INTO platform_settings (key, value) VALUES ('theme', 'light')",
+            [],
+        )?;
     }
 
     Ok(())
 }
 
 // User & Auth Queries
-pub fn authenticate_user(conn: &Connection, username: &str, password: &str) -> Result<Option<User>> {
+pub fn authenticate_user(
+    conn: &Connection,
+    username: &str,
+    password: &str,
+) -> Result<Option<User>> {
     let password_hash = hash_password(password);
     let mut stmt = conn.prepare("SELECT id, username, full_name, role, status, created_at FROM users WHERE username = ?1 AND password_hash = ?2 AND status = 'Active'")?;
     let mut user_iter = stmt.query_map(params![username, password_hash], |row| {
@@ -172,7 +187,9 @@ pub fn authenticate_user(conn: &Connection, username: &str, password: &str) -> R
 }
 
 pub fn get_all_users(conn: &Connection) -> Result<Vec<User>> {
-    let mut stmt = conn.prepare("SELECT id, username, full_name, role, status, created_at FROM users ORDER BY id ASC")?;
+    let mut stmt = conn.prepare(
+        "SELECT id, username, full_name, role, status, created_at FROM users ORDER BY id ASC",
+    )?;
     let user_iter = stmt.query_map([], |row| {
         Ok(User {
             id: Some(row.get(0)?),
@@ -216,7 +233,13 @@ pub fn update_user(conn: &Connection, user: User) -> Result<()> {
 
     conn.execute(
         "UPDATE users SET username=?1, full_name=?2, role=?3, status=?4 WHERE id=?5",
-        params![user.username, user.full_name, user.role, user.status, user.id],
+        params![
+            user.username,
+            user.full_name,
+            user.role,
+            user.status,
+            user.id
+        ],
     )?;
     Ok(())
 }
@@ -241,16 +264,18 @@ pub fn get_platform_settings(conn: &Connection) -> Result<PlatformSettings> {
     let mut default_origination_fee_percent = 1.5;
     let mut theme = "light".to_string();
 
-    for r in rows {
-        if let Ok((k, v)) = r {
-            match k.as_str() {
-                "org_name" => org_name = v,
-                "currency_symbol" => currency_symbol = v,
-                "default_annual_interest_rate" => default_annual_interest_rate = v.parse().unwrap_or(12.0),
-                "default_origination_fee_percent" => default_origination_fee_percent = v.parse().unwrap_or(1.5),
-                "theme" => theme = v,
-                _ => {}
+    for (k, v) in rows.flatten() {
+        match k.as_str() {
+            "org_name" => org_name = v,
+            "currency_symbol" => currency_symbol = v,
+            "default_annual_interest_rate" => {
+                default_annual_interest_rate = v.parse().unwrap_or(12.0)
             }
+            "default_origination_fee_percent" => {
+                default_origination_fee_percent = v.parse().unwrap_or(1.5)
+            }
+            "theme" => theme = v,
+            _ => {}
         }
     }
 
