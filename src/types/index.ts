@@ -86,6 +86,24 @@ export interface Transaction {
   created_at?: string;
 }
 
+export interface User {
+  id?: number;
+  username: string;
+  password?: string;
+  full_name: string;
+  role: 'ADMIN' | 'USER';
+  status: 'Active' | 'Inactive';
+  created_at?: string;
+}
+
+export interface PlatformSettings {
+  org_name: string;
+  currency_symbol: string;
+  default_annual_interest_rate: number;
+  default_origination_fee_percent: number;
+  theme: 'light' | 'dark' | 'system';
+}
+
 export interface DashboardStats {
   total_borrowers: number;
   total_active_loans: number;
