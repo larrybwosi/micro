@@ -36,7 +36,7 @@ fn test_user_and_settings_db() {
     // Test default settings
     let settings = get_platform_settings(&conn).unwrap();
     assert_eq!(settings.org_name, "MicroFinance Systems");
-    assert_eq!(settings.currency_symbol, "$");
+    assert_eq!(settings.currency_symbol, "KSh");
 
     // Test update settings
     let new_settings = PlatformSettings {
