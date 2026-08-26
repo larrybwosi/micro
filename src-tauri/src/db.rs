@@ -145,7 +145,7 @@ fn seed_default_data(conn: &Connection) -> Result<()> {
     if settings_count == 0 {
         conn.execute("INSERT INTO platform_settings (key, value) VALUES ('org_name', 'MicroFinance Systems')", [])?;
         conn.execute(
-            "INSERT INTO platform_settings (key, value) VALUES ('currency_symbol', '$')",
+            "INSERT INTO platform_settings (key, value) VALUES ('currency_symbol', 'KSh')",
             [],
         )?;
         conn.execute("INSERT INTO platform_settings (key, value) VALUES ('default_annual_interest_rate', '12.0')", [])?;
@@ -259,7 +259,7 @@ pub fn get_platform_settings(conn: &Connection) -> Result<PlatformSettings> {
     })?;
 
     let mut org_name = "MicroFinance Systems".to_string();
-    let mut currency_symbol = "$".to_string();
+    let mut currency_symbol = "KSh".to_string();
     let mut default_annual_interest_rate = 12.0;
     let mut default_origination_fee_percent = 1.5;
     let mut theme = "light".to_string();

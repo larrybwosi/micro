@@ -16,7 +16,7 @@ let mockUsers: User[] = [
 ];
 let mockSettings: PlatformSettings = {
   org_name: 'MicroFinance Systems',
-  currency_symbol: '$',
+  currency_symbol: 'KSh',
   default_annual_interest_rate: 12.0,
   default_origination_fee_percent: 1.5,
   theme: 'light',

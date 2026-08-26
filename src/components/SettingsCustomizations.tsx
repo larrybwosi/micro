@@ -12,7 +12,7 @@ export function SettingsCustomizations({ currentUser, onSettingsUpdated }: Setti
   const [activeTab, setActiveTab] = useState<'platform' | 'users'>('platform');
   const [settings, setSettings] = useState<PlatformSettings>({
     org_name: 'MicroFinance Systems',
-    currency_symbol: '$',
+    currency_symbol: 'KSh',
     default_annual_interest_rate: 12.0,
     default_origination_fee_percent: 1.5,
     theme: 'light',

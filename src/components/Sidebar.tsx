@@ -8,7 +8,6 @@ import {
   BarChart3, 
   Settings,
   Building2,
-  CheckCircle2,
   LogOut,
   User as UserIcon,
   Shield,
@@ -58,8 +57,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Header Branding */}
         <div className="p-5 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xs bg-indigo-600 flex items-center justify-center text-white shadow-md">
-              <Building2 className="w-6 h-6" />
+            <div className="w-10 h-10 rounded-xs bg-white overflow-hidden flex items-center justify-center shadow-md shrink-0">
+              <img src="/scryme-logo.png" alt="scryme logo" className="w-full h-full object-cover" />
             </div>
             <div>
               <h1 className="font-bold text-base text-white tracking-wide truncate max-w-[150px]">
@@ -131,16 +130,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </nav>
       </div>
 
-      {/* Footer Info / Local Database Indicator */}
-      <div className="p-4 border-t border-slate-800 bg-slate-950/40">
-        <div className="flex items-center space-x-2 text-xs text-emerald-400 bg-emerald-950/40 border border-emerald-800/50 p-2.5 rounded-xs">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          <div className="truncate">
-            <p className="font-semibold">Local SQLite DB</p>
-            <p className="text-[10px] text-emerald-500/80">Encrypted & Active</p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 
