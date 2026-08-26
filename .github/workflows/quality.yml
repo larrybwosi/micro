@@ -3,6 +3,8 @@ name: Code Quality Checks
 on:
   pull_request:
     branches: [ main, master ]
+  push:
+    branches: [ main, master ]
 
 jobs:
   quality:
@@ -12,6 +14,32 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Frontend typecheck
+        run: npm run typecheck
+
+      - name: Frontend lint
+        run: npm run lint
+
+      - name: Frontend tests
+        run: npm test
+
+      - name: Frontend build
+        run: npm run build
+
+      - name: Install system dependencies for Linux Tauri
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -29,5 +57,5 @@ jobs:
       - name: Run Clippy lints
         run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
 
-      - name: Run tests
+      - name: Run backend tests
         run: cargo test --manifest-path src-tauri/Cargo.toml

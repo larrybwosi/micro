@@ -144,7 +144,7 @@ let mockLoans: Loan[] = [
   },
 ];
 
-let mockSchedules: Record<number, ScheduleItem[]> = {
+const mockSchedules: Record<number, ScheduleItem[]> = {
   1: Array.from({ length: 12 }, (_, index) => {
     const inst = index + 1;
     const isPaid = inst <= 2;
@@ -166,7 +166,7 @@ let mockSchedules: Record<number, ScheduleItem[]> = {
   }),
 };
 
-let mockTransactions: Transaction[] = [
+const mockTransactions: Transaction[] = [
   {
     id: 1,
     loan_id: 1,
