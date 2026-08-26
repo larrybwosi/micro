@@ -141,26 +141,26 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'PENDING_APPROVAL':
-        return <span className="bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1 w-fit"><Clock className="w-3.5 h-3.5" /> Pending Approval</span>;
+        return <span className="bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold px-2.5 py-1 rounded-xs flex items-center gap-1 w-fit"><Clock className="w-3.5 h-3.5" /> Pending Approval</span>;
       case 'APPROVED':
-        return <span className="bg-blue-50 text-blue-700 border border-blue-200 text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1 w-fit"><Check className="w-3.5 h-3.5" /> Approved</span>;
+        return <span className="bg-blue-50 text-blue-700 border border-blue-200 text-xs font-bold px-2.5 py-1 rounded-xs flex items-center gap-1 w-fit"><Check className="w-3.5 h-3.5" /> Approved</span>;
       case 'ACTIVE':
-        return <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1 w-fit"><CheckCircle2 className="w-3.5 h-3.5" /> Disbursed & Active</span>;
+        return <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold px-2.5 py-1 rounded-xs flex items-center gap-1 w-fit"><CheckCircle2 className="w-3.5 h-3.5" /> Disbursed & Active</span>;
       case 'OVERDUE':
-        return <span className="bg-red-50 text-red-700 border border-red-200 text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1 w-fit"><AlertCircle className="w-3.5 h-3.5" /> Overdue</span>;
+        return <span className="bg-red-50 text-red-700 border border-red-200 text-xs font-bold px-2.5 py-1 rounded-xs flex items-center gap-1 w-fit"><AlertCircle className="w-3.5 h-3.5" /> Overdue</span>;
       case 'CLOSED':
-        return <span className="bg-slate-100 text-slate-700 border border-slate-300 text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1 w-fit"><CheckCircle2 className="w-3.5 h-3.5" /> Fully Closed</span>;
+        return <span className="bg-slate-100 text-slate-700 border border-slate-300 text-xs font-bold px-2.5 py-1 rounded-xs flex items-center gap-1 w-fit"><CheckCircle2 className="w-3.5 h-3.5" /> Fully Closed</span>;
       case 'REJECTED':
-        return <span className="bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1 w-fit"><XCircle className="w-3.5 h-3.5" /> Rejected</span>;
+        return <span className="bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold px-2.5 py-1 rounded-xs flex items-center gap-1 w-fit"><XCircle className="w-3.5 h-3.5" /> Rejected</span>;
       default:
-        return <span className="bg-slate-100 text-slate-700 text-xs font-bold px-2.5 py-1 rounded-full">{status}</span>;
+        return <span className="bg-slate-100 text-slate-700 text-xs font-bold px-2.5 py-1 rounded-xs">{status}</span>;
     }
   };
 
   return (
     <div className="space-y-6">
       {/* Header & Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-xs border border-slate-200/80 shadow-sm">
         <div>
           <h2 className="text-xl font-bold text-slate-900">Loan Lifecycle Management</h2>
           <p className="text-slate-500 text-xs mt-0.5">Approve, disburse, inspect repayment schedules, and manage loan lifecycles</p>
@@ -170,7 +170,7 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            className="px-3 py-2 text-sm border border-slate-200 rounded-xs bg-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20"
           >
             <option value="ALL">All Statuses</option>
             <option value="PENDING_APPROVAL">Pending Approval</option>
@@ -188,13 +188,13 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
               placeholder="Search loan #, borrower..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-xl w-56 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-xs w-56 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
 
           <button
             onClick={handleOpenNewLoanModal}
-            className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2 rounded-xl shadow-md shadow-blue-600/20 flex items-center gap-2 transition-all"
+            className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2 rounded-xs shadow-md shadow-blue-600/20 flex items-center gap-2 transition-all"
           >
             <PlusCircle className="w-4 h-4" />
             Apply For Loan
@@ -203,7 +203,7 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
       </div>
 
       {/* Loans Table */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xs border border-slate-200/80 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-sm">
             <thead>
@@ -259,7 +259,7 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => handleViewSchedule(loan)}
-                          className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1"
+                          className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xs transition-colors flex items-center gap-1"
                           title="View Repayment Schedule"
                         >
                           <Eye className="w-3.5 h-3.5 text-slate-500" /> Schedule
@@ -269,13 +269,13 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
                           <>
                             <button
                               onClick={() => handleUpdateStatus(loan.id!, 'APPROVED', 'Approved by Loan Committee')}
-                              className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1"
+                              className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold rounded-xs transition-colors flex items-center gap-1"
                             >
                               <Check className="w-3.5 h-3.5" /> Approve
                             </button>
                             <button
                               onClick={() => handleUpdateStatus(loan.id!, 'REJECTED', 'Credit risk exceeded threshold')}
-                              className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1"
+                              className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold rounded-xs transition-colors flex items-center gap-1"
                             >
                               <X className="w-3.5 h-3.5" /> Reject
                             </button>
@@ -285,7 +285,7 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
                         {loan.status === 'APPROVED' && (
                           <button
                             onClick={() => handleUpdateStatus(loan.id!, 'DISBURSED')}
-                            className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1 shadow-sm"
+                            className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xs transition-colors flex items-center gap-1 shadow-sm"
                           >
                             <DollarSign className="w-3.5 h-3.5" /> Disburse Funds
                           </button>
@@ -303,12 +303,12 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
       {/* New Loan Application Modal */}
       {isNewLoanModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-xs max-w-2xl w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
               <h3 className="text-lg font-bold text-slate-900">New Loan Application</h3>
               <button
                 onClick={() => setIsNewLoanModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100"
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-xs hover:bg-slate-100"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -325,7 +325,7 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
                       const bId = parseInt(e.target.value);
                       setNewLoanData({ ...newLoanData, borrower_id: bId });
                     }}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-blue-500/20"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xs bg-white focus:ring-2 focus:ring-blue-500/20"
                   >
                     {borrowers.map((b) => (
                       <option key={b.id} value={b.id}>
@@ -345,7 +345,7 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
                       setNewLoanData({ ...newLoanData, loan_product_id: pId });
                       generatePreview(pId, newLoanData.principal_amount, newLoanData.term_months);
                     }}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-blue-500/20 font-semibold text-blue-700"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xs bg-white focus:ring-2 focus:ring-blue-500/20 font-semibold text-blue-700"
                   >
                     {products.map((p) => (
                       <option key={p.id} value={p.id}>
@@ -369,7 +369,7 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
                       setNewLoanData({ ...newLoanData, principal_amount: amt });
                       generatePreview(newLoanData.loan_product_id, amt, newLoanData.term_months);
                     }}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 font-bold"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xs focus:ring-2 focus:ring-blue-500/20 font-bold"
                   />
                 </div>
 
@@ -386,7 +386,7 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
                       setNewLoanData({ ...newLoanData, term_months: term });
                       generatePreview(newLoanData.loan_product_id, newLoanData.principal_amount, term);
                     }}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xs focus:ring-2 focus:ring-blue-500/20"
                   />
                 </div>
               </div>
@@ -398,18 +398,18 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
                   value={newLoanData.notes}
                   onChange={(e) => setNewLoanData({ ...newLoanData, notes: e.target.value })}
                   placeholder="Intended business purpose, collateral notes..."
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20"
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xs focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>
 
               {/* Live Calculation Preview */}
               {previewSchedule.length > 0 && (
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                <div className="bg-slate-50 border border-slate-200 rounded-xs p-4">
                   <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center justify-between">
                     <span>Generated Repayment Schedule Preview</span>
                     <span className="text-blue-600 font-semibold">{previewSchedule.length} Monthly Installments</span>
                   </h4>
-                  <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-lg bg-white">
+                  <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-xs bg-white">
                     <table className="w-full text-xs text-left">
                       <thead className="bg-slate-100 border-b text-slate-500 sticky top-0">
                         <tr>
@@ -440,13 +440,13 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
                 <button
                   type="button"
                   onClick={() => setIsNewLoanModalOpen(false)}
-                  className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                  className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xs transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-md shadow-blue-600/20 transition-all"
+                  className="px-5 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-xs shadow-md shadow-blue-600/20 transition-all"
                 >
                   Submit Application
                 </button>
@@ -459,7 +459,7 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
       {/* Schedule Detail Inspection Modal */}
       {isScheduleModalOpen && selectedLoan && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-xs max-w-3xl w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
               <div>
                 <h3 className="text-lg font-bold text-slate-900">
@@ -471,13 +471,13 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
               </div>
               <button
                 onClick={() => setIsScheduleModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100"
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-xs hover:bg-slate-100"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="overflow-x-auto border border-slate-200 rounded-xl">
+            <div className="overflow-x-auto border border-slate-200 rounded-xs">
               <table className="w-full text-left text-sm border-collapse">
                 <thead className="bg-slate-50 text-xs font-semibold text-slate-500 uppercase border-b">
                   <tr>
@@ -503,7 +503,7 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
                         <td className="p-3 text-emerald-600 font-semibold">{formatCurrency(totalPaid)}</td>
                         <td className="p-3 text-right">
                           <span
-                            className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                            className={`text-xs font-bold px-2 py-0.5 rounded-xs ${
                               item.status === 'PAID'
                                 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                                 : item.status === 'PARTIAL'
@@ -524,7 +524,7 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
             <div className="flex justify-end pt-4 border-t border-slate-100 mt-4">
               <button
                 onClick={() => setIsScheduleModalOpen(false)}
-                className="px-5 py-2 text-sm font-semibold text-white bg-slate-800 hover:bg-slate-700 rounded-xl transition-all"
+                className="px-5 py-2 text-sm font-semibold text-white bg-slate-800 hover:bg-slate-700 rounded-xs transition-all"
               >
                 Close View
               </button>

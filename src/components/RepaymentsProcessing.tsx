@@ -81,7 +81,7 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+      <div className="bg-white p-5 rounded-xs border border-slate-200/80 shadow-sm flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-slate-900">Repayment Processing & Receipt Generator</h2>
           <p className="text-slate-500 text-xs mt-0.5">Collect loan payments, auto-allocate principal & interest, and issue printable receipts</p>
@@ -91,7 +91,7 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Payment Entry Form & History */}
         <div className="lg:col-span-7 space-y-6">
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
+          <div className="bg-white rounded-xs border border-slate-200/80 p-6 shadow-sm">
             <h3 className="font-bold text-slate-900 text-base mb-4 flex items-center gap-2">
               <DollarSign className="w-5 h-5 text-emerald-600" />
               Record New Repayment
@@ -108,7 +108,7 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
                   <select
                     value={selectedLoanId}
                     onChange={(e) => handleSelectLoan(parseInt(e.target.value))}
-                    className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-emerald-500/20 font-semibold"
+                    className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xs bg-white focus:ring-2 focus:ring-emerald-500/20 font-semibold"
                   >
                     {activeLoans.map((l) => (
                       <option key={l.id} value={l.id}>
@@ -119,7 +119,7 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
                 </div>
 
                 {selectedLoan && (
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/70 grid grid-cols-2 gap-4 text-xs">
+                  <div className="bg-slate-50 p-4 rounded-xs border border-slate-200/70 grid grid-cols-2 gap-4 text-xs">
                     <div>
                       <span className="text-slate-500">Borrower:</span>
                       <p className="font-bold text-slate-900">{selectedLoan.borrower_name}</p>
@@ -149,7 +149,7 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
                       min={1}
                       value={amount}
                       onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
-                      className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 font-bold text-slate-900"
+                      className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xs focus:ring-2 focus:ring-emerald-500/20 font-bold text-slate-900"
                     />
                   </div>
 
@@ -158,7 +158,7 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
                     <select
                       value={paymentMethod}
                       onChange={(e) => setPaymentMethod(e.target.value as Transaction['payment_method'])}
-                      className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-emerald-500/20"
+                      className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xs bg-white focus:ring-2 focus:ring-emerald-500/20"
                     >
                       <option value="BANK_TRANSFER">Bank Transfer / Wire</option>
                       <option value="MOBILE_MONEY">Mobile Money</option>
@@ -176,7 +176,7 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
                       placeholder="e.g. TXN-990182"
                       value={reference}
                       onChange={(e) => setReference(e.target.value)}
-                      className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20"
+                      className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xs focus:ring-2 focus:ring-emerald-500/20"
                     />
                   </div>
                   <div>
@@ -186,7 +186,7 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
                       placeholder="e.g. Monthly installment received"
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20"
+                      className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xs focus:ring-2 focus:ring-emerald-500/20"
                     />
                   </div>
                 </div>
@@ -195,7 +195,7 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
                   <button
                     type="submit"
                     disabled={isProcessing}
-                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm py-3 rounded-xl shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm py-3 rounded-xs shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
                   >
                     <CheckCircle2 className="w-5 h-5" />
                     {isProcessing ? 'Processing Transaction...' : 'Process Payment & Issue Receipt'}
@@ -206,7 +206,7 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
           </div>
 
           {/* Recent Repayment History */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
+          <div className="bg-white rounded-xs border border-slate-200/80 p-6 shadow-sm">
             <h3 className="font-bold text-slate-900 text-base mb-4 flex items-center gap-2">
               <History className="w-5 h-5 text-slate-500" />
               Recent Repayments Log
@@ -216,7 +216,7 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
                 <p className="text-xs text-slate-400 py-4 text-center">No transactions recorded for this loan yet.</p>
               ) : (
                 recentTransactions.map((tx) => (
-                  <div key={tx.id} className="flex items-center justify-between p-3.5 rounded-xl border border-slate-100 bg-slate-50/50 text-xs">
+                  <div key={tx.id} className="flex items-center justify-between p-3.5 rounded-xs border border-slate-100 bg-slate-50/50 text-xs">
                     <div>
                       <div className="font-bold font-mono text-slate-900">{tx.receipt_number}</div>
                       <div className="text-slate-400 text-[11px] mt-0.5">
@@ -238,7 +238,7 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
 
         {/* Receipt Display & Printable Voucher */}
         <div className="lg:col-span-5">
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm sticky top-6">
+          <div className="bg-white rounded-xs border border-slate-200/80 p-6 shadow-sm sticky top-6">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
               <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
                 <Receipt className="w-5 h-5 text-blue-600" />
@@ -247,7 +247,7 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
               {lastReceipt && (
                 <button
                   onClick={handlePrintReceipt}
-                  className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm transition-all"
+                  className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold px-3 py-1.5 rounded-xs flex items-center gap-1.5 shadow-sm transition-all"
                 >
                   <Printer className="w-3.5 h-3.5" /> Print Receipt
                 </button>
@@ -255,11 +255,11 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
             </div>
 
             {lastReceipt ? (
-              <div id="printable-receipt" className="border-2 border-dashed border-slate-300 rounded-xl p-5 bg-slate-50/40 space-y-4 font-mono text-xs">
+              <div id="printable-receipt" className="border-2 border-dashed border-slate-300 rounded-xs p-5 bg-slate-50/40 space-y-4 font-mono text-xs">
                 <div className="text-center border-b border-slate-200 pb-3">
                   <h4 className="font-bold text-base text-slate-900 uppercase">MicroFinance Pro MFI</h4>
                   <p className="text-[10px] text-slate-500">Official Payment Receipt & Voucher</p>
-                  <div className="mt-2 inline-block bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[10px]">
+                  <div className="mt-2 inline-block bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-xs text-[10px]">
                     STATUS: PAYMENT SUCCESSFUL
                   </div>
                 </div>
@@ -312,7 +312,7 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
                 </div>
               </div>
             ) : (
-              <div className="border-2 border-dashed border-slate-200 rounded-xl p-12 text-center text-slate-400 font-medium text-xs">
+              <div className="border-2 border-dashed border-slate-200 rounded-xs p-12 text-center text-slate-400 font-medium text-xs">
                 Process a repayment above to generate and inspect the official receipt.
               </div>
             )}

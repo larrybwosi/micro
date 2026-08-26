@@ -61,7 +61,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ stats, onNavigate 
   return (
     <div className="space-y-6">
       {/* Top Banner Overview */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl p-6 shadow-xl relative overflow-hidden">
+      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-xs p-6 shadow-xl relative overflow-hidden">
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h2 className="text-2xl font-bold tracking-tight">Financial Portfolio Dashboard</h2>
@@ -72,14 +72,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ stats, onNavigate 
           <div className="flex items-center gap-3">
             <button
               onClick={() => onNavigate('loans')}
-              className="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm px-4 py-2.5 rounded-xl shadow-lg shadow-blue-600/30 flex items-center gap-2 transition-all"
+              className="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm px-4 py-2.5 rounded-xs shadow-lg shadow-blue-600/30 flex items-center gap-2 transition-all"
             >
               <PlusCircle className="w-4 h-4" />
               New Loan Application
             </button>
             <button
               onClick={() => onNavigate('repayments')}
-              className="bg-slate-700 hover:bg-slate-600 text-white font-semibold text-sm px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all"
+              className="bg-slate-700 hover:bg-slate-600 text-white font-semibold text-sm px-4 py-2.5 rounded-xs flex items-center gap-2 transition-all"
             >
               <Receipt className="w-4 h-4" />
               Record Repayment
@@ -93,10 +93,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ stats, onNavigate 
         {kpis.map((kpi, idx) => {
           const Icon = kpi.icon;
           return (
-            <div key={idx} className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow">
+            <div key={idx} className="bg-white rounded-xs p-5 border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{kpi.title}</span>
-                <div className={`p-2.5 rounded-xl border ${kpi.color}`}>
+                <div className={`p-2.5 rounded-xs border ${kpi.color}`}>
                   <Icon className="w-5 h-5" />
                 </div>
               </div>
@@ -114,7 +114,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ stats, onNavigate 
       {/* Action Hub & Quick Stats */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Quick Action Hub */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
+        <div className="lg:col-span-2 bg-white rounded-xs border border-slate-200/80 p-6 shadow-sm">
           <h3 className="font-bold text-slate-900 text-base mb-4 flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-blue-600" />
             Operational Quick Actions
@@ -122,7 +122,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ stats, onNavigate 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <button
               onClick={() => onNavigate('borrowers')}
-              className="p-4 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 transition-all text-left group"
+              className="p-4 rounded-xs border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 transition-all text-left group"
             >
               <Users className="w-6 h-6 text-blue-600 mb-2 group-hover:scale-110 transition-transform" />
               <div className="font-semibold text-slate-800 text-sm">Borrower Directory</div>
@@ -131,7 +131,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ stats, onNavigate 
 
             <button
               onClick={() => onNavigate('products')}
-              className="p-4 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 transition-all text-left group"
+              className="p-4 rounded-xs border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 transition-all text-left group"
             >
               <Banknote className="w-6 h-6 text-indigo-600 mb-2 group-hover:scale-110 transition-transform" />
               <div className="font-semibold text-slate-800 text-sm">Loan Product Studio</div>
@@ -140,7 +140,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ stats, onNavigate 
 
             <button
               onClick={() => onNavigate('reports')}
-              className="p-4 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 transition-all text-left group"
+              className="p-4 rounded-xs border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 transition-all text-left group"
             >
               <TrendingUp className="w-6 h-6 text-emerald-600 mb-2 group-hover:scale-110 transition-transform" />
               <div className="font-semibold text-slate-800 text-sm">Reports & Audit</div>
@@ -150,7 +150,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ stats, onNavigate 
         </div>
 
         {/* Portfolio Health Overview */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm flex flex-col justify-between">
+        <div className="bg-white rounded-xs border border-slate-200/80 p-6 shadow-sm flex flex-col justify-between">
           <div>
             <h3 className="font-bold text-slate-900 text-base mb-4 flex items-center justify-between">
               <span>Portfolio Health</span>
@@ -162,8 +162,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ stats, onNavigate 
                   <span>Registered Borrowers</span>
                   <span className="font-bold text-slate-900">{stats.total_borrowers}</span>
                 </div>
-                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                  <div className="bg-blue-600 h-full rounded-full" style={{ width: '100%' }}></div>
+                <div className="w-full bg-slate-100 h-2 rounded-xs overflow-hidden">
+                  <div className="bg-blue-600 h-full rounded-xs" style={{ width: '100%' }}></div>
                 </div>
               </div>
 
@@ -172,8 +172,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ stats, onNavigate 
                   <span>Pending Loan Approvals</span>
                   <span className="font-bold text-amber-600">{stats.pending_approvals_count}</span>
                 </div>
-                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                  <div className="bg-amber-500 h-full rounded-full" style={{ width: `${Math.min(stats.pending_approvals_count * 20, 100)}%` }}></div>
+                <div className="w-full bg-slate-100 h-2 rounded-xs overflow-hidden">
+                  <div className="bg-amber-500 h-full rounded-xs" style={{ width: `${Math.min(stats.pending_approvals_count * 20, 100)}%` }}></div>
                 </div>
               </div>
 
@@ -182,8 +182,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ stats, onNavigate 
                   <span>Collection Efficiency</span>
                   <span className="font-bold text-emerald-600">97.5%</span>
                 </div>
-                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                  <div className="bg-emerald-500 h-full rounded-full" style={{ width: '97.5%' }}></div>
+                <div className="w-full bg-slate-100 h-2 rounded-xs overflow-hidden">
+                  <div className="bg-emerald-500 h-full rounded-xs" style={{ width: '97.5%' }}></div>
                 </div>
               </div>
             </div>

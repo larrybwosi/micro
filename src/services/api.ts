@@ -1,199 +1,28 @@
-import { Borrower, LoanProduct, Loan, ScheduleItem, Transaction, DashboardStats } from '../types';
+import { Borrower, LoanProduct, Loan, ScheduleItem, Transaction, DashboardStats, User, PlatformSettings } from '../types';
 
-// Mock initial data state for web preview & testing fallback
-let mockBorrowers: Borrower[] = [
+// Clean state for web preview & testing fallback
+let mockBorrowers: Borrower[] = [];
+let mockLoanProducts: LoanProduct[] = [];
+let mockLoans: Loan[] = [];
+let mockUsers: User[] = [
   {
     id: 1,
-    first_name: 'Alice',
-    last_name: 'Smith',
-    email: 'alice.smith@example.com',
-    phone: '+1 555-0192',
-    national_id: 'ID-982341',
-    address: '123 Main St, Springfield',
-    credit_score: 740,
+    username: 'admin',
+    full_name: 'System Administrator',
+    role: 'ADMIN',
     status: 'Active',
-    created_at: '2026-01-10',
-  },
-  {
-    id: 2,
-    first_name: 'Robert',
-    last_name: 'Johnson',
-    email: 'robert.j@example.com',
-    phone: '+1 555-0144',
-    national_id: 'ID-482019',
-    address: '456 Oak Ave, Metropolis',
-    credit_score: 680,
-    status: 'Active',
-    created_at: '2026-01-15',
-  },
-  {
-    id: 3,
-    first_name: 'Elena',
-    last_name: 'Rostova',
-    email: 'elena.r@example.com',
-    phone: '+1 555-0188',
-    national_id: 'ID-730192',
-    address: '789 Pine Rd, Gotham',
-    credit_score: 810,
-    status: 'Active',
-    created_at: '2026-01-20',
+    created_at: new Date().toISOString(),
   },
 ];
-
-let mockLoanProducts: LoanProduct[] = [
-  {
-    id: 1,
-    name: 'Micro Business Loan',
-    code: 'MBL-01',
-    description: 'Working capital loan for small enterprise owners',
-    interest_method: 'REDUCING_BALANCE',
-    annual_interest_rate: 12.0,
-    min_amount: 500.0,
-    max_amount: 10000.0,
-    min_term_months: 3,
-    max_term_months: 24,
-    payment_frequency: 'MONTHLY',
-    origination_fee_percent: 1.5,
-    late_fee_percent: 2.0,
-    grace_period_days: 5,
-    created_at: '2026-01-01',
-  },
-  {
-    id: 2,
-    name: 'Personal Emergency Loan',
-    code: 'PEL-01',
-    description: 'Quick access flat-rate loan for emergency needs',
-    interest_method: 'FLAT_RATE',
-    annual_interest_rate: 15.0,
-    min_amount: 100.0,
-    max_amount: 2000.0,
-    min_term_months: 1,
-    max_term_months: 12,
-    payment_frequency: 'MONTHLY',
-    origination_fee_percent: 1.0,
-    late_fee_percent: 3.0,
-    grace_period_days: 3,
-    created_at: '2026-01-01',
-  },
-  {
-    id: 3,
-    name: 'Agricultural Harvest Loan',
-    code: 'AHL-01',
-    description: 'Bullet principal repayment loan aligned with harvest season',
-    interest_method: 'INTEREST_ONLY',
-    annual_interest_rate: 10.0,
-    min_amount: 1000.0,
-    max_amount: 25000.0,
-    min_term_months: 6,
-    max_term_months: 12,
-    payment_frequency: 'MONTHLY',
-    origination_fee_percent: 2.0,
-    late_fee_percent: 2.5,
-    grace_period_days: 7,
-    created_at: '2026-01-01',
-  },
-];
-
-let mockLoans: Loan[] = [
-  {
-    id: 1,
-    borrower_id: 1,
-    loan_product_id: 1,
-    loan_number: 'LN-20260201-001',
-    principal_amount: 5000.0,
-    annual_interest_rate: 12.0,
-    interest_method: 'REDUCING_BALANCE',
-    term_months: 12,
-    payment_frequency: 'MONTHLY',
-    origination_fee: 75.0,
-    status: 'ACTIVE',
-    application_date: '2026-02-01',
-    approval_date: '2026-02-02',
-    disbursement_date: '2026-02-03',
-    maturity_date: '2027-02-03',
-    notes: 'Approved for grocery store inventory expansion.',
-    created_at: '2026-02-01',
-    borrower_name: 'Alice Smith',
-    product_name: 'Micro Business Loan',
-    total_interest: 328.0,
-    total_payable: 5328.0,
-    amount_paid: 888.0,
-    balance_remaining: 4440.0,
-  },
-  {
-    id: 2,
-    borrower_id: 2,
-    loan_product_id: 2,
-    loan_number: 'LN-20260210-002',
-    principal_amount: 1200.0,
-    annual_interest_rate: 15.0,
-    interest_method: 'FLAT_RATE',
-    term_months: 6,
-    payment_frequency: 'MONTHLY',
-    origination_fee: 12.0,
-    status: 'PENDING_APPROVAL',
-    application_date: '2026-02-10',
-    notes: 'Emergency home repairs.',
-    created_at: '2026-02-10',
-    borrower_name: 'Robert Johnson',
-    product_name: 'Personal Emergency Loan',
-    total_interest: 90.0,
-    total_payable: 1290.0,
-    amount_paid: 0.0,
-    balance_remaining: 1290.0,
-  },
-];
-
-const mockSchedules: Record<number, ScheduleItem[]> = {
-  1: Array.from({ length: 12 }, (_, index) => {
-    const inst = index + 1;
-    const isPaid = inst <= 2;
-    return {
-      id: index + 1,
-      loan_id: 1,
-      installment_number: inst,
-      due_date: `2026-0${Math.min(inst + 2, 9)}-03`,
-      principal_due: 400.0,
-      interest_due: 44.0,
-      fee_due: 0.0,
-      total_installment: 444.0,
-      principal_paid: isPaid ? 400.0 : 0.0,
-      interest_paid: isPaid ? 44.0 : 0.0,
-      fee_paid: 0.0,
-      status: isPaid ? 'PAID' : 'PENDING',
-      paid_date: isPaid ? `2026-0${inst + 2}-03` : undefined,
-    };
-  }),
+let mockSettings: PlatformSettings = {
+  org_name: 'MicroFinance Systems',
+  currency_symbol: '$',
+  default_annual_interest_rate: 12.0,
+  default_origination_fee_percent: 1.5,
+  theme: 'light',
 };
-
-const mockTransactions: Transaction[] = [
-  {
-    id: 1,
-    loan_id: 1,
-    receipt_number: 'REC-20260303-01',
-    transaction_date: '2026-03-03',
-    amount: 444.0,
-    principal_component: 400.0,
-    interest_component: 44.0,
-    fee_component: 0.0,
-    payment_method: 'BANK_TRANSFER',
-    reference: 'TXN-99812',
-    notes: 'Installment #1 payment',
-  },
-  {
-    id: 2,
-    loan_id: 1,
-    receipt_number: 'REC-20260403-02',
-    transaction_date: '2026-04-03',
-    amount: 444.0,
-    principal_component: 400.0,
-    interest_component: 44.0,
-    fee_component: 0.0,
-    payment_method: 'MOBILE_MONEY',
-    reference: 'MP-88210',
-    notes: 'Installment #2 payment',
-  },
-];
+const mockSchedules: Record<number, ScheduleItem[]> = {};
+const mockTransactions: Transaction[] = [];
 
 const isTauri = () => typeof window !== 'undefined' && '__TAURI_IPC__' in window;
 
@@ -347,6 +176,48 @@ function mockInvokeFallback<T>(command: string, args?: Record<string, unknown>):
           resolve(newTx as unknown as T);
           break;
         }
+        case 'login_cmd': {
+          const username = args?.username as string;
+          const password = args?.password as string;
+          if (username === 'admin' && password === 'admin123') {
+            resolve(mockUsers[0] as unknown as T);
+          } else {
+            const found = mockUsers.find((u) => u.username === username && u.status === 'Active');
+            resolve((found || null) as unknown as T);
+          }
+          break;
+        }
+        case 'get_users_cmd':
+          resolve(mockUsers as unknown as T);
+          break;
+        case 'create_user_cmd': {
+          const u = args?.user as User;
+          const newU = { ...u, id: mockUsers.length + 1, created_at: new Date().toISOString() };
+          mockUsers.push(newU);
+          resolve(newU.id as unknown as T);
+          break;
+        }
+        case 'update_user_cmd': {
+          const u = args?.user as User;
+          mockUsers = mockUsers.map((item) => (item.id === u.id ? { ...item, ...u } : item));
+          resolve(undefined as unknown as T);
+          break;
+        }
+        case 'delete_user_cmd': {
+          const id = args?.id as number;
+          mockUsers = mockUsers.filter((item) => item.id !== id);
+          resolve(undefined as unknown as T);
+          break;
+        }
+        case 'get_settings_cmd':
+          resolve(mockSettings as unknown as T);
+          break;
+        case 'update_settings_cmd': {
+          const s = args?.settings as PlatformSettings;
+          mockSettings = { ...s };
+          resolve(undefined as unknown as T);
+          break;
+        }
         case 'get_dashboard_stats_cmd': {
           const stats: DashboardStats = {
             total_borrowers: mockBorrowers.length,
@@ -404,6 +275,15 @@ function mockInvokeFallback<T>(command: string, args?: Record<string, unknown>):
 }
 
 export const api = {
+  login: (username: string, password: string) => invokeTauri<User | null>('login_cmd', { username, password }),
+  getUsers: () => invokeTauri<User[]>('get_users_cmd'),
+  createUser: (user: User) => invokeTauri<number>('create_user_cmd', { user }),
+  updateUser: (user: User) => invokeTauri<void>('update_user_cmd', { user }),
+  deleteUser: (id: number) => invokeTauri<void>('delete_user_cmd', { id }),
+
+  getSettings: () => invokeTauri<PlatformSettings>('get_settings_cmd'),
+  updateSettings: (settings: PlatformSettings) => invokeTauri<void>('update_settings_cmd', { settings }),
+
   getBorrowers: () => invokeTauri<Borrower[]>('get_borrowers'),
   createBorrower: (borrower: Borrower) => invokeTauri<number>('create_borrower_cmd', { borrower }),
   updateBorrower: (borrower: Borrower) => invokeTauri<void>('update_borrower_cmd', { borrower }),

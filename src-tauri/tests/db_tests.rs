@@ -19,6 +19,59 @@ fn test_schedule_calculations() {
 }
 
 #[test]
+fn test_user_and_settings_db() {
+    let conn = rusqlite::Connection::open_in_memory().unwrap();
+    init_db(&conn).unwrap();
+
+    // Test default admin login
+    let admin_user = authenticate_user(&conn, "admin", "admin123").unwrap();
+    assert!(admin_user.is_some());
+    let admin = admin_user.unwrap();
+    assert_eq!(admin.role, "ADMIN");
+
+    // Test invalid login
+    let invalid_user = authenticate_user(&conn, "admin", "wrongpassword").unwrap();
+    assert!(invalid_user.is_none());
+
+    // Test default settings
+    let settings = get_platform_settings(&conn).unwrap();
+    assert_eq!(settings.org_name, "MicroFinance Systems");
+    assert_eq!(settings.currency_symbol, "$");
+
+    // Test update settings
+    let new_settings = PlatformSettings {
+        org_name: "Acme Finance".to_string(),
+        currency_symbol: "€".to_string(),
+        default_annual_interest_rate: 14.5,
+        default_origination_fee_percent: 2.0,
+        theme: "dark".to_string(),
+    };
+    update_platform_settings(&conn, new_settings).unwrap();
+    let updated_settings = get_platform_settings(&conn).unwrap();
+    assert_eq!(updated_settings.org_name, "Acme Finance");
+    assert_eq!(updated_settings.currency_symbol, "€");
+
+    // Test User CRUD
+    let new_user = User {
+        id: None,
+        username: "officer1".to_string(),
+        password: Some("pass123".to_string()),
+        full_name: "Loan Officer 1".to_string(),
+        role: "USER".to_string(),
+        status: "Active".to_string(),
+        created_at: None,
+    };
+    let u_id = create_user(&conn, new_user).unwrap();
+    assert!(u_id > 0);
+
+    let users = get_all_users(&conn).unwrap();
+    assert_eq!(users.len(), 2);
+
+    let officer_auth = authenticate_user(&conn, "officer1", "pass123").unwrap();
+    assert!(officer_auth.is_some());
+}
+
+#[test]
 fn test_edge_case_calculations() {
     // 0 principal or term
     let zero_principal = calculate_loan_schedule(0.0, 12.0, 12, "FLAT_RATE", "2026-01-01");

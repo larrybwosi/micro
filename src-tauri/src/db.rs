@@ -1,10 +1,34 @@
-use crate::models::{Borrower, DashboardStats, Loan, LoanProduct, ScheduleItem, Transaction};
+use crate::models::{
+    Borrower, DashboardStats, Loan, LoanProduct, PlatformSettings, ScheduleItem, Transaction, User,
+};
 use chrono::{Datelike, Local, NaiveDate};
 use rusqlite::{params, Connection, Result};
+use sha2::{Digest, Sha256};
+
+pub fn hash_password(password: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(password.as_bytes());
+    format!("{:x}", hasher.finalize())
+}
 
 pub fn init_db(conn: &Connection) -> Result<()> {
     conn.execute_batch(
         "
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            full_name TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'USER',
+            status TEXT NOT NULL DEFAULT 'Active',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS platform_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
+
         CREATE TABLE IF NOT EXISTS borrowers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             first_name TEXT NOT NULL,
@@ -103,31 +127,173 @@ pub fn init_db(conn: &Connection) -> Result<()> {
 }
 
 fn seed_default_data(conn: &Connection) -> Result<()> {
-    let count: i64 = conn.query_row("SELECT COUNT(*) FROM loan_products", [], |row| row.get(0))?;
-    if count == 0 {
+    // Seed default admin user if users table is empty
+    let user_count: i64 = conn.query_row("SELECT COUNT(*) FROM users", [], |row| row.get(0))?;
+    if user_count == 0 {
+        let admin_pass_hash = hash_password("admin123");
         conn.execute(
-            "INSERT INTO loan_products (name, code, description, interest_method, annual_interest_rate, min_amount, max_amount, min_term_months, max_term_months, payment_frequency, origination_fee_percent, late_fee_percent, grace_period_days)
-             VALUES 
-             ('Micro Business Loan', 'MBL-01', 'Working capital loan for small enterprise owners', 'REDUCING_BALANCE', 12.0, 500.0, 10000.0, 3, 24, 'MONTHLY', 1.5, 2.0, 5),
-             ('Personal Emergency Loan', 'PEL-01', 'Quick access flat-rate loan for emergency needs', 'FLAT_RATE', 15.0, 100.0, 2000.0, 1, 12, 'MONTHLY', 1.0, 3.0, 3),
-             ('Agricultural Harvest Loan', 'AHL-01', 'Bullet principal repayment loan aligned with harvest season', 'INTEREST_ONLY', 10.0, 1000.0, 25000.0, 6, 12, 'MONTHLY', 2.0, 2.5, 7)",
+            "INSERT INTO users (username, password_hash, full_name, role, status) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params!["admin", admin_pass_hash, "System Administrator", "ADMIN", "Active"],
+        )?;
+    }
+
+    // Seed default platform settings if platform_settings table is empty
+    let settings_count: i64 =
+        conn.query_row("SELECT COUNT(*) FROM platform_settings", [], |row| {
+            row.get(0)
+        })?;
+    if settings_count == 0 {
+        conn.execute("INSERT INTO platform_settings (key, value) VALUES ('org_name', 'MicroFinance Systems')", [])?;
+        conn.execute(
+            "INSERT INTO platform_settings (key, value) VALUES ('currency_symbol', '$')",
+            [],
+        )?;
+        conn.execute("INSERT INTO platform_settings (key, value) VALUES ('default_annual_interest_rate', '12.0')", [])?;
+        conn.execute("INSERT INTO platform_settings (key, value) VALUES ('default_origination_fee_percent', '1.5')", [])?;
+        conn.execute(
+            "INSERT INTO platform_settings (key, value) VALUES ('theme', 'light')",
             [],
         )?;
     }
 
-    let borrower_count: i64 =
-        conn.query_row("SELECT COUNT(*) FROM borrowers", [], |row| row.get(0))?;
-    if borrower_count == 0 {
-        conn.execute(
-            "INSERT INTO borrowers (first_name, last_name, email, phone, national_id, address, credit_score, status)
-             VALUES
-             ('Alice', 'Smith', 'alice.smith@example.com', '+1 555-0192', 'ID-982341', '123 Main St, Springfield', 740, 'Active'),
-             ('Robert', 'Johnson', 'robert.j@example.com', '+1 555-0144', 'ID-482019', '456 Oak Ave, Metropolis', 680, 'Active'),
-             ('Elena', 'Rostova', 'elena.r@example.com', '+1 555-0188', 'ID-730192', '789 Pine Rd, Gotham', 810, 'Active')",
-            [],
-        )?;
+    Ok(())
+}
+
+// User & Auth Queries
+pub fn authenticate_user(
+    conn: &Connection,
+    username: &str,
+    password: &str,
+) -> Result<Option<User>> {
+    let password_hash = hash_password(password);
+    let mut stmt = conn.prepare("SELECT id, username, full_name, role, status, created_at FROM users WHERE username = ?1 AND password_hash = ?2 AND status = 'Active'")?;
+    let mut user_iter = stmt.query_map(params![username, password_hash], |row| {
+        Ok(User {
+            id: Some(row.get(0)?),
+            username: row.get(1)?,
+            password: None,
+            full_name: row.get(2)?,
+            role: row.get(3)?,
+            status: row.get(4)?,
+            created_at: row.get(5)?,
+        })
+    })?;
+
+    if let Some(user_res) = user_iter.next() {
+        Ok(Some(user_res?))
+    } else {
+        Ok(None)
+    }
+}
+
+pub fn get_all_users(conn: &Connection) -> Result<Vec<User>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, username, full_name, role, status, created_at FROM users ORDER BY id ASC",
+    )?;
+    let user_iter = stmt.query_map([], |row| {
+        Ok(User {
+            id: Some(row.get(0)?),
+            username: row.get(1)?,
+            password: None,
+            full_name: row.get(2)?,
+            role: row.get(3)?,
+            status: row.get(4)?,
+            created_at: row.get(5)?,
+        })
+    })?;
+
+    let mut list = Vec::new();
+    for u in user_iter {
+        list.push(u?);
+    }
+    Ok(list)
+}
+
+pub fn create_user(conn: &Connection, user: User) -> Result<i64> {
+    let raw_pass = user.password.as_deref().unwrap_or("123456");
+    let pass_hash = hash_password(raw_pass);
+    conn.execute(
+        "INSERT INTO users (username, password_hash, full_name, role, status) VALUES (?1, ?2, ?3, ?4, ?5)",
+        params![user.username, pass_hash, user.full_name, user.role, user.status],
+    )?;
+    Ok(conn.last_insert_rowid())
+}
+
+pub fn update_user(conn: &Connection, user: User) -> Result<()> {
+    if let Some(ref pass) = user.password {
+        if !pass.trim().is_empty() {
+            let pass_hash = hash_password(pass);
+            conn.execute(
+                "UPDATE users SET username=?1, password_hash=?2, full_name=?3, role=?4, status=?5 WHERE id=?6",
+                params![user.username, pass_hash, user.full_name, user.role, user.status, user.id],
+            )?;
+            return Ok(());
+        }
     }
 
+    conn.execute(
+        "UPDATE users SET username=?1, full_name=?2, role=?3, status=?4 WHERE id=?5",
+        params![
+            user.username,
+            user.full_name,
+            user.role,
+            user.status,
+            user.id
+        ],
+    )?;
+    Ok(())
+}
+
+pub fn delete_user(conn: &Connection, id: i64) -> Result<()> {
+    conn.execute("DELETE FROM users WHERE id = ?1", params![id])?;
+    Ok(())
+}
+
+// Platform Settings Queries
+pub fn get_platform_settings(conn: &Connection) -> Result<PlatformSettings> {
+    let mut stmt = conn.prepare("SELECT key, value FROM platform_settings")?;
+    let rows = stmt.query_map([], |row| {
+        let key: String = row.get(0)?;
+        let val: String = row.get(1)?;
+        Ok((key, val))
+    })?;
+
+    let mut org_name = "MicroFinance Systems".to_string();
+    let mut currency_symbol = "$".to_string();
+    let mut default_annual_interest_rate = 12.0;
+    let mut default_origination_fee_percent = 1.5;
+    let mut theme = "light".to_string();
+
+    for (k, v) in rows.flatten() {
+        match k.as_str() {
+            "org_name" => org_name = v,
+            "currency_symbol" => currency_symbol = v,
+            "default_annual_interest_rate" => {
+                default_annual_interest_rate = v.parse().unwrap_or(12.0)
+            }
+            "default_origination_fee_percent" => {
+                default_origination_fee_percent = v.parse().unwrap_or(1.5)
+            }
+            "theme" => theme = v,
+            _ => {}
+        }
+    }
+
+    Ok(PlatformSettings {
+        org_name,
+        currency_symbol,
+        default_annual_interest_rate,
+        default_origination_fee_percent,
+        theme,
+    })
+}
+
+pub fn update_platform_settings(conn: &Connection, settings: PlatformSettings) -> Result<()> {
+    conn.execute("INSERT INTO platform_settings (key, value) VALUES ('org_name', ?1) ON CONFLICT(key) DO UPDATE SET value=?1", params![settings.org_name])?;
+    conn.execute("INSERT INTO platform_settings (key, value) VALUES ('currency_symbol', ?1) ON CONFLICT(key) DO UPDATE SET value=?1", params![settings.currency_symbol])?;
+    conn.execute("INSERT INTO platform_settings (key, value) VALUES ('default_annual_interest_rate', ?1) ON CONFLICT(key) DO UPDATE SET value=?1", params![settings.default_annual_interest_rate.to_string()])?;
+    conn.execute("INSERT INTO platform_settings (key, value) VALUES ('default_origination_fee_percent', ?1) ON CONFLICT(key) DO UPDATE SET value=?1", params![settings.default_origination_fee_percent.to_string()])?;
+    conn.execute("INSERT INTO platform_settings (key, value) VALUES ('theme', ?1) ON CONFLICT(key) DO UPDATE SET value=?1", params![settings.theme])?;
     Ok(())
 }
 

@@ -96,6 +96,26 @@ pub struct Transaction {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct User {
+    pub id: Option<i64>,
+    pub username: String,
+    pub password: Option<String>,
+    pub full_name: String,
+    pub role: String,   // "ADMIN" or "USER"
+    pub status: String, // "Active" or "Inactive"
+    pub created_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlatformSettings {
+    pub org_name: String,
+    pub currency_symbol: String,
+    pub default_annual_interest_rate: f64,
+    pub default_origination_fee_percent: f64,
+    pub theme: String, // "light", "dark", "system"
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DashboardStats {
     pub total_borrowers: i64,
     pub total_active_loans: i64,
