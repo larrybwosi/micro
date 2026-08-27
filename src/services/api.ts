@@ -147,12 +147,13 @@ function mockInvokeFallback<T>(command: string, args?: Record<string, unknown>):
           const payment_method = args?.payment_method as Transaction['payment_method'];
           const reference = args?.reference as string;
           const notes = args?.notes as string;
+          const payment_date = (args?.payment_date as string) || new Date().toISOString().split('T')[0];
 
           const newTx: Transaction = {
             id: mockTransactions.length + 1,
             loan_id: loanId,
             receipt_number: `REC-${Date.now().toString().slice(-8)}`,
-            transaction_date: new Date().toISOString().split('T')[0],
+            transaction_date: payment_date,
             amount,
             principal_component: amount * 0.9,
             interest_component: amount * 0.1,
@@ -300,8 +301,8 @@ export const api = {
 
   getLoanSchedule: (loan_id: number) => invokeTauri<ScheduleItem[]>('get_loan_schedule_cmd', { loan_id }),
   getLoanTransactions: (loan_id: number) => invokeTauri<Transaction[]>('get_loan_transactions_cmd', { loan_id }),
-  recordRepayment: (loan_id: number, amount: number, payment_method: string, reference: string, notes: string) =>
-    invokeTauri<Transaction>('record_repayment_cmd', { loan_id, amount, payment_method, reference, notes }),
+  recordRepayment: (loan_id: number, amount: number, payment_method: string, reference: string, notes: string, payment_date?: string) =>
+    invokeTauri<Transaction>('record_repayment_cmd', { loan_id, amount, payment_method, reference, notes, payment_date }),
 
   getDashboardStats: () => invokeTauri<DashboardStats>('get_dashboard_stats_cmd'),
   calculatePreviewSchedule: (principal: number, annual_rate: number, term_months: number, interest_method: string, start_date: string) =>

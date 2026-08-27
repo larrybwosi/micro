@@ -155,10 +155,19 @@ fn record_repayment_cmd(
     payment_method: String,
     reference: String,
     notes: String,
+    payment_date: Option<String>,
 ) -> Result<Transaction, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
-    record_repayment(&conn, loan_id, amount, payment_method, reference, notes)
-        .map_err(|e| e.to_string())
+    record_repayment(
+        &conn,
+        loan_id,
+        amount,
+        payment_method,
+        reference,
+        notes,
+        payment_date,
+    )
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

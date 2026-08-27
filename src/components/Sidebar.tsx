@@ -36,15 +36,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const isAdmin = currentUser?.role === 'ADMIN';
+
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'borrowers', label: 'Borrowers', icon: Users },
-    { id: 'products', label: 'Loan Products', icon: Layers },
+    { id: 'products', label: 'Loan Products', icon: Layers, adminOnly: true },
     { id: 'loans', label: 'Loan Management', icon: Banknote, badge: pendingApprovals > 0 ? pendingApprovals : null },
     { id: 'repayments', label: 'Repayments', icon: Receipt },
     { id: 'reports', label: 'Reports & Audit', icon: BarChart3 },
-    { id: 'settings', label: 'Settings & Customization', icon: Settings },
-  ];
+    { id: 'settings', label: 'Settings & Customization', icon: Settings, adminOnly: true },
+  ].filter((item) => !item.adminOnly || isAdmin);
 
   const handleTabClick = (tabId: string) => {
     setCurrentTab(tabId);

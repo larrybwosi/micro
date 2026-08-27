@@ -67,6 +67,8 @@ export function App() {
 
   const pendingCount = loans.filter((l) => l.status === 'PENDING_APPROVAL').length;
 
+  const isAdmin = currentUser.role === 'ADMIN';
+
   return (
     <div className="flex flex-col md:flex-row h-screen bg-slate-100 font-sans overflow-hidden">
       {/* Sidebar Navigation */}
@@ -84,15 +86,31 @@ export function App() {
         <div className="max-w-7xl mx-auto">
           {currentTab === 'dashboard' && <DashboardView stats={stats} onNavigate={setCurrentTab} />}
           {currentTab === 'borrowers' && <BorrowerManagement borrowers={borrowers} onRefresh={loadData} />}
-          {currentTab === 'products' && <LoanProductsConfigurator products={products} onRefresh={loadData} />}
-          {currentTab === 'loans' && <LoanManagement loans={loans} borrowers={borrowers} products={products} onRefresh={loadData} />}
+          {currentTab === 'products' && (
+            isAdmin ? (
+              <LoanProductsConfigurator products={products} onRefresh={loadData} />
+            ) : (
+              <div className="bg-white p-8 rounded-xs text-center text-slate-500 border border-slate-200">
+                Access Restricted: Only Administrators can view or manage the loan configurator.
+              </div>
+            )
+          )}
+          {currentTab === 'loans' && (
+            <LoanManagement loans={loans} borrowers={borrowers} products={products} onRefresh={loadData} currentUser={currentUser} />
+          )}
           {currentTab === 'repayments' && <RepaymentsProcessing loans={loans} onRefresh={loadData} />}
           {currentTab === 'reports' && <ReportsAudit loans={loans} borrowers={borrowers} />}
           {currentTab === 'settings' && (
-            <SettingsCustomizations
-              currentUser={currentUser}
-              onSettingsUpdated={(setts) => setPlatformSettings(setts)}
-            />
+            isAdmin ? (
+              <SettingsCustomizations
+                currentUser={currentUser}
+                onSettingsUpdated={(setts) => setPlatformSettings(setts)}
+              />
+            ) : (
+              <div className="bg-white p-8 rounded-xs text-center text-slate-500 border border-slate-200">
+                Access Restricted: Only Administrators can view or manage platform settings.
+              </div>
+            )
           )}
         </div>
       </main>

@@ -709,9 +709,13 @@ pub fn record_repayment(
     payment_method: String,
     reference: String,
     notes: String,
+    payment_date: Option<String>,
 ) -> Result<Transaction> {
     let receipt_number = format!("REC-{}", Local::now().format("%Y%m%d%H%M%S"));
     let today = Local::now().format("%Y-%m-%d").to_string();
+    let tx_date = payment_date
+        .filter(|d| !d.trim().is_empty())
+        .unwrap_or(today);
 
     let safe_amount = amount.max(0.0);
     let mut remaining = safe_amount;
@@ -764,14 +768,14 @@ pub fn record_repayment(
 
         tx.execute(
             "UPDATE schedule_items SET principal_paid=?1, interest_paid=?2, fee_paid=?3, status=?4, paid_date=?5 WHERE id=?6",
-            params![item.principal_paid, item.interest_paid, item.fee_paid, item.status, today, item.id],
+            params![item.principal_paid, item.interest_paid, item.fee_paid, item.status, tx_date, item.id],
         )?;
     }
 
     tx.execute(
         "INSERT INTO transactions (loan_id, receipt_number, transaction_date, amount, principal_component, interest_component, fee_component, payment_method, reference, notes)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
-        params![loan_id, receipt_number, today, safe_amount, total_p, total_i, total_f, payment_method, reference, notes],
+        params![loan_id, receipt_number, tx_date, safe_amount, total_p, total_i, total_f, payment_method, reference, notes],
     )?;
 
     let tx_id = tx.last_insert_rowid();
@@ -796,7 +800,7 @@ pub fn record_repayment(
         id: Some(tx_id),
         loan_id,
         receipt_number,
-        transaction_date: today,
+        transaction_date: tx_date,
         amount: safe_amount,
         principal_component: total_p,
         interest_component: total_i,
