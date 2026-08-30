@@ -126,3 +126,29 @@ pub struct DashboardStats {
     pub overdue_loans_count: i64,
     pub pending_approvals_count: i64,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SyncPayload {
+    pub timestamp: String,
+    pub users: Vec<User>,
+    pub settings: PlatformSettings,
+    pub borrowers: Vec<Borrower>,
+    pub loan_products: Vec<LoanProduct>,
+    pub loans: Vec<Loan>,
+    pub schedule_items: Vec<ScheduleItem>,
+    pub transactions: Vec<Transaction>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SyncStatus {
+    pub mode: String, // "OFFLINE", "HUB", "SPOKE"
+    pub local_ip: String,
+    pub port: u16,
+    pub pairing_code: String,
+    pub hub_ip: Option<String>,
+    pub auth_token: Option<String>,
+    pub paired_devices: Vec<String>,
+    pub last_synced_at: Option<String>,
+    pub is_connected: bool,
+    pub error_message: Option<String>,
+}

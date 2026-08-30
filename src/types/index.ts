@@ -114,3 +114,16 @@ export interface DashboardStats {
   overdue_loans_count: number;
   pending_approvals_count: number;
 }
+
+export interface SyncStatus {
+  mode: 'OFFLINE' | 'HUB' | 'SPOKE';
+  local_ip: string;
+  port: number;
+  pairing_code: string;
+  hub_ip?: string;
+  auth_token?: string;
+  paired_devices: string[];
+  last_synced_at?: string;
+  is_connected: boolean;
+  error_message?: string;
+}

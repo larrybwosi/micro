@@ -2,11 +2,49 @@
 
 use microfinance_core::*;
 use rusqlite::Connection;
-use std::sync::Mutex;
-use tauri::State;
+use std::sync::{Arc, Mutex};
+use tauri::{Manager, State};
 
-struct AppState {
-    db: Mutex<Connection>,
+pub struct AppState {
+    pub db: Mutex<Connection>,
+}
+
+#[tauri::command]
+fn get_sync_status_cmd(sync_state: State<SharedSyncState>) -> Result<SyncStatus, String> {
+    let state = sync_state.lock().map_err(|e| e.to_string())?;
+    Ok(state.to_status())
+}
+
+#[tauri::command]
+fn start_hub_cmd(sync_state: State<SharedSyncState>) -> Result<SyncStatus, String> {
+    start_hub_server(sync_state.inner().clone())?;
+    let state = sync_state.lock().map_err(|e| e.to_string())?;
+    Ok(state.to_status())
+}
+
+#[tauri::command]
+fn pair_spoke_cmd(
+    sync_state: State<SharedSyncState>,
+    hub_ip: String,
+    pairing_code: String,
+    device_name: String,
+) -> Result<SyncStatus, String> {
+    pair_spoke_device(
+        sync_state.inner().clone(),
+        hub_ip,
+        pairing_code,
+        device_name,
+    )
+}
+
+#[tauri::command]
+fn trigger_sync_cmd(sync_state: State<SharedSyncState>) -> Result<SyncStatus, String> {
+    trigger_sync_now(sync_state.inner().clone())
+}
+
+#[tauri::command]
+fn get_local_ip_cmd() -> String {
+    get_local_ip()
 }
 
 #[tauri::command]
@@ -204,12 +242,29 @@ fn calculate_preview_schedule_cmd(
 }
 
 fn main() {
-    let conn = Connection::open("scryme_micro.db").expect("Failed to open SQLite database");
-    init_db(&conn).expect("Failed to initialize database");
-
     tauri::Builder::default()
-        .manage(AppState {
-            db: Mutex::new(conn),
+        .setup(|app| {
+            let db_path = match app.path().app_data_dir() {
+                Ok(mut p) => {
+                    std::fs::create_dir_all(&p).ok();
+                    p.push("scryme_micro.db");
+                    p
+                }
+                Err(_) => std::path::PathBuf::from("scryme_micro.db"),
+            };
+
+            let conn = Connection::open(&db_path).expect("Failed to open SQLite database");
+            init_db(&conn).expect("Failed to initialize database");
+
+            let sync_state: SharedSyncState =
+                Arc::new(Mutex::new(SyncEngineState::new(db_path.clone())));
+
+            app.manage(AppState {
+                db: Mutex::new(conn),
+            });
+            app.manage(sync_state);
+
+            Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             login_cmd,
@@ -234,7 +289,12 @@ fn main() {
             get_loan_transactions_cmd,
             record_repayment_cmd,
             get_dashboard_stats_cmd,
-            calculate_preview_schedule_cmd
+            calculate_preview_schedule_cmd,
+            get_sync_status_cmd,
+            start_hub_cmd,
+            pair_spoke_cmd,
+            trigger_sync_cmd,
+            get_local_ip_cmd
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
