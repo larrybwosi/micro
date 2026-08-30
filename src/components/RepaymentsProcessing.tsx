@@ -26,6 +26,7 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
   const [paymentMethod, setPaymentMethod] = useState<Transaction['payment_method']>('BANK_TRANSFER');
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
+  const [paymentDate, setPaymentDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
   const [lastReceipt, setLastReceipt] = useState<Transaction | null>(null);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
@@ -62,7 +63,8 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
         amount,
         paymentMethod,
         reference || `TXN-${Math.floor(100000 + Math.random() * 900000)}`,
-        notes || 'Regular installment payment'
+        notes || 'Regular installment payment',
+        paymentDate
       );
       setLastReceipt(tx);
       setRecentTransactions((prev) => [tx, ...prev]);
@@ -168,7 +170,17 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Payment Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={paymentDate}
+                      onChange={(e) => setPaymentDate(e.target.value)}
+                      className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xs focus:ring-2 focus:ring-emerald-500/20 font-medium"
+                    />
+                  </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">Transaction Ref / Cheque #</label>
                     <input
@@ -183,7 +195,7 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
                     <label className="block text-xs font-semibold text-slate-700 mb-1">Officer Notes</label>
                     <input
                       type="text"
-                      placeholder="e.g. Monthly installment received"
+                      placeholder="e.g. Early payment received"
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
                       className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xs focus:ring-2 focus:ring-emerald-500/20"

@@ -100,7 +100,7 @@ fn test_database_lifecycle_integration() {
     let active_loan = loans_active.iter().find(|l| l.id == Some(loan_id)).unwrap();
     assert_eq!(active_loan.status, "ACTIVE");
 
-    // Record repayment
+    // Record repayment with earlier payment date
     let installment_total = schedule[0].total_installment;
     let tx = record_repayment(
         &conn,
@@ -109,9 +109,11 @@ fn test_database_lifecycle_integration() {
         "CASH".to_string(),
         "REF-1001".to_string(),
         "First monthly installment".to_string(),
+        Some("2026-01-15".to_string()),
     )
     .unwrap();
     assert_eq!(tx.amount, installment_total);
+    assert_eq!(tx.transaction_date, "2026-01-15");
 
     // Verify schedule updated to PAID
     let updated_schedule = get_loan_schedule(&conn, loan_id).unwrap();
@@ -202,7 +204,7 @@ fn test_full_repayment_and_loan_closure() {
     let schedule = get_loan_schedule(&conn, loan_id).unwrap();
     let total_payable: f64 = schedule.iter().map(|s| s.total_installment).sum();
 
-    // Pay full loan balance in single transaction
+    // Pay full loan balance in single transaction with explicit date
     record_repayment(
         &conn,
         loan_id,
@@ -210,6 +212,7 @@ fn test_full_repayment_and_loan_closure() {
         "BANK_TRANSFER".to_string(),
         "PAY-FULL".to_string(),
         "Full lump-sum settlement".to_string(),
+        Some("2026-01-20".to_string()),
     )
     .unwrap();
 

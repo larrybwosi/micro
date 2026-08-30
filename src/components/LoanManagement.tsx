@@ -24,6 +24,7 @@ interface LoanManagementProps {
   products: LoanProduct[];
   currentUser?: User | null;
   onRefresh: () => void;
+  currentUser?: User | null;
 }
 
 export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers, products, currentUser, onRefresh }) => {
@@ -38,6 +39,7 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
 
   // Application Form
+  const [borrowerSearchTerm, setBorrowerSearchTerm] = useState('');
   const [newLoanData, setNewLoanData] = useState({
     borrower_id: borrowers[0]?.id || 0,
     loan_product_id: products[0]?.id || 0,
@@ -59,6 +61,7 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
   const handleOpenNewLoanModal = () => {
     const defaultBorrower = borrowers[0]?.id || 0;
     const defaultProduct = products[0]?.id || 0;
+    setBorrowerSearchTerm('');
     setNewLoanData({
       borrower_id: defaultBorrower,
       loan_product_id: defaultProduct,
@@ -69,6 +72,17 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
     setIsNewLoanModalOpen(true);
     generatePreview(defaultProduct, 1000, 6);
   };
+
+  const filteredModalBorrowers = borrowers.filter((b) => {
+    const term = borrowerSearchTerm.toLowerCase();
+    const fullName = `${b.first_name} ${b.last_name}`.toLowerCase();
+    return (
+      fullName.includes(term) ||
+      b.national_id.toLowerCase().includes(term) ||
+      b.email.toLowerCase().includes(term) ||
+      b.phone.toLowerCase().includes(term)
+    );
+  });
 
   const generatePreview = async (productId: number, principal: number, term: number) => {
     const product = products.find((p) => p.id === productId);
@@ -320,21 +334,37 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Select Borrower</label>
-                  <select
-                    required
-                    value={newLoanData.borrower_id}
-                    onChange={(e) => {
-                      const bId = parseInt(e.target.value);
-                      setNewLoanData({ ...newLoanData, borrower_id: bId });
-                    }}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xs bg-white focus:ring-2 focus:ring-blue-500/20"
-                  >
-                    {borrowers.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.first_name} {b.last_name} ({b.national_id})
-                      </option>
-                    ))}
-                  </select>
+                  <div className="space-y-1.5">
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        placeholder="Search borrower by name, ID, email..."
+                        value={borrowerSearchTerm}
+                        onChange={(e) => setBorrowerSearchTerm(e.target.value)}
+                        className="pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-xs w-full focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      />
+                    </div>
+                    <select
+                      required
+                      value={newLoanData.borrower_id}
+                      onChange={(e) => {
+                        const bId = parseInt(e.target.value);
+                        setNewLoanData({ ...newLoanData, borrower_id: bId });
+                      }}
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xs bg-white focus:ring-2 focus:ring-blue-500/20"
+                    >
+                      {filteredModalBorrowers.length === 0 ? (
+                        <option value={0} disabled>No borrowers matching search</option>
+                      ) : (
+                        filteredModalBorrowers.map((b) => (
+                          <option key={b.id} value={b.id}>
+                            {b.first_name} {b.last_name} ({b.national_id})
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </div>
                 </div>
 
                 <div>
