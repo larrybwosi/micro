@@ -14,7 +14,7 @@ import {
   Receipt,
   AlertCircle
 } from 'lucide-react';
-import { Loan, Borrower, LoanProduct, ScheduleItem } from '../types';
+import { Loan, Borrower, LoanProduct, ScheduleItem, User } from '../types';
 import { api } from '../services/api';
 import { formatCurrency, formatDate } from '../lib/utils';
 
@@ -22,10 +22,12 @@ interface LoanManagementProps {
   loans: Loan[];
   borrowers: Borrower[];
   products: LoanProduct[];
+  currentUser?: User | null;
   onRefresh: () => void;
 }
 
-export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers, products, onRefresh }) => {
+export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers, products, currentUser, onRefresh }) => {
+  const isAdmin = currentUser?.role === 'ADMIN';
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
@@ -265,7 +267,7 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
                           <Eye className="w-3.5 h-3.5 text-slate-500" /> Schedule
                         </button>
 
-                        {loan.status === 'PENDING_APPROVAL' && (
+                        {isAdmin && loan.status === 'PENDING_APPROVAL' && (
                           <>
                             <button
                               onClick={() => handleUpdateStatus(loan.id!, 'APPROVED', 'Approved by Loan Committee')}
@@ -282,7 +284,7 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
                           </>
                         )}
 
-                        {loan.status === 'APPROVED' && (
+                        {isAdmin && loan.status === 'APPROVED' && (
                           <button
                             onClick={() => handleUpdateStatus(loan.id!, 'DISBURSED')}
                             className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xs transition-colors flex items-center gap-1 shadow-sm"

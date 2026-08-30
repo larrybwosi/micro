@@ -7,6 +7,7 @@ import {
   Receipt, 
   BarChart3, 
   Settings,
+  Radio,
   Building2,
   LogOut,
   User as UserIcon,
@@ -43,6 +44,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'loans', label: 'Loan Management', icon: Banknote, badge: pendingApprovals > 0 ? pendingApprovals : null },
     { id: 'repayments', label: 'Repayments', icon: Receipt },
     { id: 'reports', label: 'Reports & Audit', icon: BarChart3 },
+    { id: 'sync', label: 'Network Data Sync', icon: Radio },
     { id: 'settings', label: 'Settings & Customization', icon: Settings },
   ];
 
