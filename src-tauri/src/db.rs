@@ -1,5 +1,6 @@
 use crate::models::{
-    Borrower, DashboardStats, Loan, LoanProduct, PlatformSettings, ScheduleItem, Transaction, User,
+    Borrower, DashboardStats, Loan, LoanProduct, PlatformSettings, ScheduleItem, SyncPayload,
+    Transaction, User,
 };
 use chrono::{Datelike, Local, NaiveDate};
 use rusqlite::{params, Connection, Result};
@@ -569,7 +570,11 @@ pub fn get_all_loans(conn: &Connection, status_filter: Option<String>) -> Result
 }
 
 pub fn create_loan(conn: &Connection, loan: Loan) -> Result<i64> {
-    let loan_number = format!("LN-{}", Local::now().format("%Y%m%d%H%M%S"));
+    let loan_number = if loan.loan_number.trim().is_empty() {
+        format!("LN-{}", Local::now().format("%Y%m%d%H%M%S"))
+    } else {
+        loan.loan_number.clone()
+    };
     let application_date = Local::now().format("%Y-%m-%d").to_string();
 
     let tx = conn.unchecked_transaction()?;
@@ -855,4 +860,157 @@ pub fn get_dashboard_stats(conn: &Connection) -> Result<DashboardStats> {
         overdue_loans_count,
         pending_approvals_count,
     })
+}
+
+// Data Sync Engine Queries
+pub fn export_sync_data(conn: &Connection) -> Result<SyncPayload> {
+    let users = get_all_users(conn)?;
+    let settings = get_platform_settings(conn)?;
+    let borrowers = get_all_borrowers(conn)?;
+    let loan_products = get_all_loan_products(conn)?;
+    let loans = get_all_loans(conn, None)?;
+
+    let mut schedule_items = Vec::new();
+    let mut transactions = Vec::new();
+
+    for loan in &loans {
+        if let Some(lid) = loan.id {
+            if let Ok(mut items) = get_loan_schedule(conn, lid) {
+                schedule_items.append(&mut items);
+            }
+            if let Ok(mut txs) = get_loan_transactions(conn, lid) {
+                transactions.append(&mut txs);
+            }
+        }
+    }
+
+    Ok(SyncPayload {
+        timestamp: Local::now().to_rfc3339(),
+        users,
+        settings,
+        borrowers,
+        loan_products,
+        loans,
+        schedule_items,
+        transactions,
+    })
+}
+
+pub fn import_sync_data(conn: &Connection, payload: &SyncPayload) -> Result<()> {
+    let tx = conn.unchecked_transaction()?;
+
+    // Update Platform Settings
+    update_platform_settings(&tx, payload.settings.clone())?;
+
+    // Upsert Users by username
+    for u in &payload.users {
+        let pass_hash = u
+            .password
+            .as_deref()
+            .map(hash_password)
+            .unwrap_or_else(|| hash_password("123456"));
+        tx.execute(
+            "INSERT INTO users (username, password_hash, full_name, role, status) VALUES (?1, ?2, ?3, ?4, ?5)
+             ON CONFLICT(username) DO UPDATE SET full_name=?3, role=?4, status=?5",
+            params![u.username, pass_hash, u.full_name, u.role, u.status],
+        )?;
+    }
+
+    // Upsert Borrowers by national_id
+    for b in &payload.borrowers {
+        tx.execute(
+            "INSERT INTO borrowers (first_name, last_name, email, phone, national_id, address, credit_score, status)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+             ON CONFLICT(national_id) DO UPDATE SET first_name=?1, last_name=?2, email=?3, phone=?4, address=?6, credit_score=?7, status=?8",
+            params![b.first_name, b.last_name, b.email, b.phone, b.national_id, b.address, b.credit_score, b.status],
+        )?;
+    }
+
+    // Upsert Loan Products by code
+    for p in &payload.loan_products {
+        tx.execute(
+            "INSERT INTO loan_products (name, code, description, interest_method, annual_interest_rate, min_amount, max_amount, min_term_months, max_term_months, payment_frequency, origination_fee_percent, late_fee_percent, grace_period_days)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+             ON CONFLICT(code) DO UPDATE SET name=?1, description=?3, interest_method=?4, annual_interest_rate=?5, min_amount=?6, max_amount=?7, min_term_months=?8, max_term_months=?9, payment_frequency=?10, origination_fee_percent=?11, late_fee_percent=?12, grace_period_days=?13",
+            params![
+                p.name, p.code, p.description, p.interest_method, p.annual_interest_rate,
+                p.min_amount, p.max_amount, p.min_term_months, p.max_term_months,
+                p.payment_frequency, p.origination_fee_percent, p.late_fee_percent, p.grace_period_days
+            ],
+        )?;
+    }
+
+    // Upsert Loans by loan_number
+    for l in &payload.loans {
+        let b_id: Option<i64> = tx
+            .query_row(
+                "SELECT id FROM borrowers WHERE national_id = (SELECT national_id FROM borrowers WHERE id=?1) OR id=?1 LIMIT 1",
+                params![l.borrower_id],
+                |r| r.get(0),
+            )
+            .ok();
+
+        let p_id: Option<i64> = tx
+            .query_row(
+                "SELECT id FROM loan_products WHERE code = (SELECT code FROM loan_products WHERE id=?1) OR id=?1 LIMIT 1",
+                params![l.loan_product_id],
+                |r| r.get(0),
+            )
+            .ok();
+
+        if let (Some(borrower_id), Some(loan_product_id)) = (b_id, p_id) {
+            tx.execute(
+                "INSERT INTO loans (borrower_id, loan_product_id, loan_number, principal_amount, annual_interest_rate, interest_method, term_months, payment_frequency, origination_fee, status, application_date, approval_date, disbursement_date, maturity_date, notes)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
+                 ON CONFLICT(loan_number) DO UPDATE SET status=?10, approval_date=?12, disbursement_date=?13, maturity_date=?14, notes=?15",
+                params![
+                    borrower_id, loan_product_id, l.loan_number, l.principal_amount,
+                    l.annual_interest_rate, l.interest_method, l.term_months,
+                    l.payment_frequency, l.origination_fee, l.status, l.application_date,
+                    l.approval_date, l.disbursement_date, l.maturity_date, l.notes
+                ],
+            )?;
+
+            let loan_db_id: i64 = tx.query_row(
+                "SELECT id FROM loans WHERE loan_number=?1",
+                params![l.loan_number],
+                |r| r.get(0),
+            )?;
+
+            // Insert schedule items for this loan
+            for s in &payload.schedule_items {
+                if s.loan_id == l.id.unwrap_or(-1) || s.loan_id == loan_db_id {
+                    tx.execute(
+                        "INSERT INTO schedule_items (loan_id, installment_number, due_date, principal_due, interest_due, fee_due, total_installment, principal_paid, interest_paid, fee_paid, status, paid_date)
+                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+                         ON CONFLICT(id) DO UPDATE SET principal_paid=?8, interest_paid=?9, fee_paid=?10, status=?11, paid_date=?12",
+                        params![
+                            loan_db_id, s.installment_number, s.due_date, s.principal_due, s.interest_due,
+                            s.fee_due, s.total_installment, s.principal_paid, s.interest_paid,
+                            s.fee_paid, s.status, s.paid_date
+                        ],
+                    )?;
+                }
+            }
+
+            // Insert transactions for this loan
+            for t in &payload.transactions {
+                if t.loan_id == l.id.unwrap_or(-1) || t.loan_id == loan_db_id {
+                    tx.execute(
+                        "INSERT INTO transactions (loan_id, receipt_number, transaction_date, amount, principal_component, interest_component, fee_component, payment_method, reference, notes)
+                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+                         ON CONFLICT(receipt_number) DO NOTHING",
+                        params![
+                            loan_db_id, t.receipt_number, t.transaction_date, t.amount,
+                            t.principal_component, t.interest_component, t.fee_component,
+                            t.payment_method, t.reference, t.notes
+                        ],
+                    )?;
+                }
+            }
+        }
+    }
+
+    tx.commit()?;
+    Ok(())
 }

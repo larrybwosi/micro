@@ -1,4 +1,4 @@
-import { Borrower, LoanProduct, Loan, ScheduleItem, Transaction, DashboardStats, User, PlatformSettings } from '../types';
+import { Borrower, LoanProduct, Loan, ScheduleItem, Transaction, DashboardStats, User, PlatformSettings, SyncStatus } from '../types';
 
 // Clean state for web preview & testing fallback
 let mockBorrowers: Borrower[] = [];
@@ -21,10 +21,20 @@ let mockSettings: PlatformSettings = {
   default_origination_fee_percent: 1.5,
   theme: 'light',
 };
+let mockSyncStatus: SyncStatus = {
+  mode: 'OFFLINE',
+  local_ip: '192.168.1.100',
+  port: 8765,
+  pairing_code: '849201',
+  paired_devices: [],
+  is_connected: false,
+};
 const mockSchedules: Record<number, ScheduleItem[]> = {};
 const mockTransactions: Transaction[] = [];
 
-const isTauri = () => typeof window !== 'undefined' && '__TAURI_IPC__' in window;
+const isTauri = () =>
+  typeof window !== 'undefined' &&
+  ('__TAURI_INTERNALS__' in window || '__TAURI_IPC__' in window || '__TAURI__' in window);
 
 async function invokeTauri<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   try {
@@ -268,6 +278,40 @@ function mockInvokeFallback<T>(command: string, args?: Record<string, unknown>):
           resolve(items as unknown as T);
           break;
         }
+        case 'get_sync_status_cmd':
+          resolve(mockSyncStatus as unknown as T);
+          break;
+        case 'start_hub_cmd':
+          mockSyncStatus = {
+            ...mockSyncStatus,
+            mode: 'HUB',
+            is_connected: true,
+            paired_devices: ['Field-Tablet-01'],
+          };
+          resolve(mockSyncStatus as unknown as T);
+          break;
+        case 'pair_spoke_cmd':
+          mockSyncStatus = {
+            ...mockSyncStatus,
+            mode: 'SPOKE',
+            hub_ip: (args?.hub_ip as string) || '192.168.1.50',
+            auth_token: 'TOK-MOCK-999',
+            is_connected: true,
+            last_synced_at: new Date().toISOString(),
+          };
+          resolve(mockSyncStatus as unknown as T);
+          break;
+        case 'trigger_sync_cmd':
+          mockSyncStatus = {
+            ...mockSyncStatus,
+            last_synced_at: new Date().toISOString(),
+            is_connected: true,
+          };
+          resolve(mockSyncStatus as unknown as T);
+          break;
+        case 'get_local_ip_cmd':
+          resolve('192.168.1.100' as unknown as T);
+          break;
         default:
           resolve([] as unknown as T);
       }
@@ -307,4 +351,11 @@ export const api = {
   getDashboardStats: () => invokeTauri<DashboardStats>('get_dashboard_stats_cmd'),
   calculatePreviewSchedule: (principal: number, annual_rate: number, term_months: number, interest_method: string, start_date: string) =>
     invokeTauri<ScheduleItem[]>('calculate_preview_schedule_cmd', { principal, annual_rate, term_months, interest_method, start_date }),
+
+  getSyncStatus: () => invokeTauri<SyncStatus>('get_sync_status_cmd'),
+  startHub: () => invokeTauri<SyncStatus>('start_hub_cmd'),
+  pairSpoke: (hub_ip: string, pairing_code: string, device_name: string) =>
+    invokeTauri<SyncStatus>('pair_spoke_cmd', { hub_ip, pairing_code, device_name }),
+  triggerSync: () => invokeTauri<SyncStatus>('trigger_sync_cmd'),
+  getLocalIp: () => invokeTauri<string>('get_local_ip_cmd'),
 };

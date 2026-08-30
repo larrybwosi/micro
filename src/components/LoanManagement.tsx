@@ -22,11 +22,12 @@ interface LoanManagementProps {
   loans: Loan[];
   borrowers: Borrower[];
   products: LoanProduct[];
+  currentUser?: User | null;
   onRefresh: () => void;
   currentUser?: User | null;
 }
 
-export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers, products, onRefresh, currentUser }) => {
+export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers, products, currentUser, onRefresh }) => {
   const isAdmin = currentUser?.role === 'ADMIN';
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');

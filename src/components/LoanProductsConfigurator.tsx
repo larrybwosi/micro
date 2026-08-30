@@ -10,16 +10,18 @@ import {
   DollarSign, 
   HelpCircle 
 } from 'lucide-react';
-import { LoanProduct } from '../types';
+import { LoanProduct, User } from '../types';
 import { api } from '../services/api';
 import { formatCurrency } from '../lib/utils';
 
 interface LoanProductsConfiguratorProps {
   products: LoanProduct[];
+  currentUser?: User | null;
   onRefresh: () => void;
 }
 
-export const LoanProductsConfigurator: React.FC<LoanProductsConfiguratorProps> = ({ products, onRefresh }) => {
+export const LoanProductsConfigurator: React.FC<LoanProductsConfiguratorProps> = ({ products, currentUser, onRefresh }) => {
+  const isAdmin = currentUser?.role === 'ADMIN';
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<LoanProduct | null>(null);
 
@@ -113,13 +115,15 @@ export const LoanProductsConfigurator: React.FC<LoanProductsConfiguratorProps> =
           <p className="text-slate-500 text-xs mt-0.5">Customize loan products, interest calculation methods, limits, and fee structures</p>
         </div>
 
-        <button
-          onClick={handleOpenCreateModal}
-          className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2 rounded-xs shadow-md shadow-blue-600/20 flex items-center gap-2 transition-all self-start sm:self-auto"
-        >
-          <PlusCircle className="w-4 h-4" />
-          Create New Product
-        </button>
+        {isAdmin && (
+          <button
+            onClick={handleOpenCreateModal}
+            className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2 rounded-xs shadow-md shadow-blue-600/20 flex items-center gap-2 transition-all self-start sm:self-auto"
+          >
+            <PlusCircle className="w-4 h-4" />
+            Create New Product
+          </button>
+        )}
       </div>
 
       {/* Loan Products Grid */}
@@ -174,20 +178,22 @@ export const LoanProductsConfigurator: React.FC<LoanProductsConfiguratorProps> =
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-4">
-              <button
-                onClick={() => handleOpenEditModal(p)}
-                className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-xs transition-colors flex items-center gap-1"
-              >
-                <Edit3 className="w-3.5 h-3.5" /> Edit Config
-              </button>
-              <button
-                onClick={() => handleDelete(p.id!)}
-                className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-xs transition-colors flex items-center gap-1"
-              >
-                <Trash2 className="w-3.5 h-3.5" /> Delete
-              </button>
-            </div>
+            {isAdmin && (
+              <div className="flex items-center justify-end gap-2 pt-4">
+                <button
+                  onClick={() => handleOpenEditModal(p)}
+                  className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-xs transition-colors flex items-center gap-1"
+                >
+                  <Edit3 className="w-3.5 h-3.5" /> Edit Config
+                </button>
+                <button
+                  onClick={() => handleDelete(p.id!)}
+                  className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-xs transition-colors flex items-center gap-1"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Delete
+                </button>
+              </div>
+            )}
           </div>
         ))}
       </div>

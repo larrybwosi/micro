@@ -7,6 +7,7 @@ import { LoanManagement } from './components/LoanManagement';
 import { RepaymentsProcessing } from './components/RepaymentsProcessing';
 import { ReportsAudit } from './components/ReportsAudit';
 import { SettingsCustomizations } from './components/SettingsCustomizations';
+import { SyncEngineView } from './components/SyncEngineView';
 import { LoginView } from './components/LoginView';
 
 import { Borrower, LoanProduct, Loan, DashboardStats, User, PlatformSettings } from './types';
@@ -98,8 +99,10 @@ export function App() {
           {currentTab === 'loans' && (
             <LoanManagement loans={loans} borrowers={borrowers} products={products} onRefresh={loadData} currentUser={currentUser} />
           )}
+          {currentTab === 'products' && <LoanProductsConfigurator products={products} currentUser={currentUser} onRefresh={loadData} />}
           {currentTab === 'repayments' && <RepaymentsProcessing loans={loans} onRefresh={loadData} />}
           {currentTab === 'reports' && <ReportsAudit loans={loans} borrowers={borrowers} />}
+          {currentTab === 'sync' && <SyncEngineView onSyncComplete={loadData} />}
           {currentTab === 'settings' && (
             isAdmin ? (
               <SettingsCustomizations
