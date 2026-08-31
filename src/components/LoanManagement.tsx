@@ -24,7 +24,6 @@ interface LoanManagementProps {
   products: LoanProduct[];
   currentUser?: User | null;
   onRefresh: () => void;
-  currentUser?: User | null;
 }
 
 export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers, products, currentUser, onRefresh }) => {
