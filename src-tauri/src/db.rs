@@ -342,7 +342,8 @@ pub fn save_sync_config(
 }
 
 pub fn get_sync_config(conn: &Connection) -> Result<PersistentSyncConfig> {
-    let mut stmt = conn.prepare("SELECT key, value FROM platform_settings WHERE key LIKE 'sync_%'")?;
+    let mut stmt =
+        conn.prepare("SELECT key, value FROM platform_settings WHERE key LIKE 'sync_%'")?;
     let rows = stmt.query_map([], |row| {
         let key: String = row.get(0)?;
         let val: String = row.get(1)?;
