@@ -298,6 +298,81 @@ pub fn update_platform_settings(conn: &Connection, settings: PlatformSettings) -
     Ok(())
 }
 
+pub struct PersistentSyncConfig {
+    pub mode: String,
+    pub hub_ip: Option<String>,
+    pub auth_token: Option<String>,
+    pub pairing_code: Option<String>,
+}
+
+pub fn save_sync_config(
+    conn: &Connection,
+    mode: &str,
+    hub_ip: Option<&str>,
+    auth_token: Option<&str>,
+    pairing_code: Option<&str>,
+) -> Result<()> {
+    conn.execute(
+        "INSERT INTO platform_settings (key, value) VALUES ('sync_mode', ?1) ON CONFLICT(key) DO UPDATE SET value=?1",
+        params![mode],
+    )?;
+
+    if let Some(ip) = hub_ip {
+        conn.execute(
+            "INSERT INTO platform_settings (key, value) VALUES ('sync_hub_ip', ?1) ON CONFLICT(key) DO UPDATE SET value=?1",
+            params![ip],
+        )?;
+    }
+
+    if let Some(token) = auth_token {
+        conn.execute(
+            "INSERT INTO platform_settings (key, value) VALUES ('sync_auth_token', ?1) ON CONFLICT(key) DO UPDATE SET value=?1",
+            params![token],
+        )?;
+    }
+
+    if let Some(code) = pairing_code {
+        conn.execute(
+            "INSERT INTO platform_settings (key, value) VALUES ('sync_pairing_code', ?1) ON CONFLICT(key) DO UPDATE SET value=?1",
+            params![code],
+        )?;
+    }
+
+    Ok(())
+}
+
+pub fn get_sync_config(conn: &Connection) -> Result<PersistentSyncConfig> {
+    let mut stmt =
+        conn.prepare("SELECT key, value FROM platform_settings WHERE key LIKE 'sync_%'")?;
+    let rows = stmt.query_map([], |row| {
+        let key: String = row.get(0)?;
+        let val: String = row.get(1)?;
+        Ok((key, val))
+    })?;
+
+    let mut mode = "OFFLINE".to_string();
+    let mut hub_ip = None;
+    let mut auth_token = None;
+    let mut pairing_code = None;
+
+    for (k, v) in rows.flatten() {
+        match k.as_str() {
+            "sync_mode" => mode = v,
+            "sync_hub_ip" => hub_ip = Some(v),
+            "sync_auth_token" => auth_token = Some(v),
+            "sync_pairing_code" => pairing_code = Some(v),
+            _ => {}
+        }
+    }
+
+    Ok(PersistentSyncConfig {
+        mode,
+        hub_ip,
+        auth_token,
+        pairing_code,
+    })
+}
+
 // Borrower Queries
 pub fn get_all_borrowers(conn: &Connection) -> Result<Vec<Borrower>> {
     let mut stmt = conn.prepare("SELECT id, first_name, last_name, email, phone, national_id, address, credit_score, status, created_at FROM borrowers ORDER BY id DESC")?;

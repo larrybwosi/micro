@@ -1,4 +1,4 @@
-use crate::db::{export_sync_data, import_sync_data};
+use crate::db::{export_sync_data, import_sync_data, save_sync_config};
 use crate::models::{SyncPayload, SyncStatus};
 use chrono::Local;
 use rusqlite::Connection;
@@ -8,6 +8,22 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use tiny_http::{Header, Response, Server};
+
+fn json_response(status: u16, body: &str) -> Response<std::io::Cursor<Vec<u8>>> {
+    let res = Response::from_string(body).with_status_code(status);
+    if let Ok(header) = Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]) {
+        res.with_header(header)
+    } else {
+        res
+    }
+}
+
+pub fn lock_state<'a, T>(mutex: &'a Mutex<T>) -> std::sync::MutexGuard<'a, T> {
+    match mutex.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    }
+}
 
 pub fn get_local_ip() -> String {
     if let Ok(socket) = UdpSocket::bind("0.0.0.0:0") {
@@ -96,16 +112,22 @@ pub struct PairResponse {
 }
 
 pub fn start_hub_server(shared_state: SharedSyncState) -> Result<(), String> {
-    let mut state = shared_state.lock().map_err(|e| e.to_string())?;
+    let mut state = lock_state(&shared_state);
     if state.hub_running {
         return Ok(());
     }
 
     state.mode = "HUB".to_string();
     state.is_connected = true;
-    state.pairing_code = generate_pairing_code();
+    if state.pairing_code.is_empty() {
+        state.pairing_code = generate_pairing_code();
+    }
     state.hub_running = true;
     state.local_ip = get_local_ip();
+
+    if let Ok(conn) = Connection::open(&state.db_path) {
+        let _ = save_sync_config(&conn, "HUB", None, None, Some(&state.pairing_code));
+    }
 
     let port = state.port;
     let db_path = state.db_path.clone();
@@ -116,11 +138,10 @@ pub fn start_hub_server(shared_state: SharedSyncState) -> Result<(), String> {
         let server = match Server::http(&server_addr) {
             Ok(s) => s,
             Err(e) => {
-                if let Ok(mut st) = state_clone.lock() {
-                    st.error_message = Some(format!("Failed to bind Hub server: {}", e));
-                    st.hub_running = false;
-                    st.is_connected = false;
-                }
+                let mut st = lock_state(&state_clone);
+                st.error_message = Some(format!("Failed to bind Hub server: {}", e));
+                st.hub_running = false;
+                st.is_connected = false;
                 return;
             }
         };
@@ -131,9 +152,7 @@ pub fn start_hub_server(shared_state: SharedSyncState) -> Result<(), String> {
 
             if url == "/api/status" {
                 let json = r#"{"status":"online","role":"HUB"}"#;
-                let header = Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap();
-                let res = Response::from_string(json).with_header(header);
-                let _ = request.respond(res);
+                let _ = request.respond(json_response(200, json));
                 continue;
             }
 
@@ -141,7 +160,7 @@ pub fn start_hub_server(shared_state: SharedSyncState) -> Result<(), String> {
                 let mut body = String::new();
                 let _ = request.as_reader().read_to_string(&mut body);
                 if let Ok(pair_req) = serde_json::from_str::<PairRequest>(&body) {
-                    let mut st = state_clone.lock().unwrap();
+                    let mut st = lock_state(&state_clone);
                     if pair_req.pairing_code.trim() == st.pairing_code.trim() {
                         let token = format!("TOK-{}", Local::now().format("%Y%m%d%H%M%S%f"));
                         st.valid_tokens.push(token.clone());
@@ -156,18 +175,13 @@ pub fn start_hub_server(shared_state: SharedSyncState) -> Result<(), String> {
                             status: "paired".to_string(),
                             auth_token: token,
                         };
-                        let json = serde_json::to_string(&resp).unwrap();
-                        let header = Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap();
-                        let res = Response::from_string(json).with_header(header);
-                        let _ = request.respond(res);
-                        continue;
+                        if let Ok(json) = serde_json::to_string(&resp) {
+                            let _ = request.respond(json_response(200, &json));
+                            continue;
+                        }
                     }
                 }
-                let header = Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap();
-                let res = Response::from_string(r#"{"error":"Invalid pairing code"}"#)
-                    .with_status_code(401)
-                    .with_header(header);
-                let _ = request.respond(res);
+                let _ = request.respond(json_response(401, r#"{"error":"Invalid pairing code"}"#));
                 continue;
             }
 
@@ -177,7 +191,7 @@ pub fn start_hub_server(shared_state: SharedSyncState) -> Result<(), String> {
                     if header.field.equiv("Authorization") {
                         let val = header.value.as_str();
                         let token = val.trim_start_matches("Bearer ").trim();
-                        let st = state_clone.lock().unwrap();
+                        let st = lock_state(&state_clone);
                         if st.valid_tokens.iter().any(|t| t == token) {
                             authorized = true;
                         }
@@ -185,11 +199,8 @@ pub fn start_hub_server(shared_state: SharedSyncState) -> Result<(), String> {
                 }
 
                 if !authorized {
-                    let header = Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap();
-                    let res = Response::from_string(r#"{"error":"Unauthorized token"}"#)
-                        .with_status_code(401)
-                        .with_header(header);
-                    let _ = request.respond(res);
+                    let _ =
+                        request.respond(json_response(401, r#"{"error":"Unauthorized token"}"#));
                     continue;
                 }
 
@@ -200,23 +211,17 @@ pub fn start_hub_server(shared_state: SharedSyncState) -> Result<(), String> {
                     if let Ok(conn) = Connection::open(&db_path) {
                         let _ = import_sync_data(&conn, &incoming_payload);
                         if let Ok(updated_payload) = export_sync_data(&conn) {
-                            if let Ok(mut st) = state_clone.lock() {
-                                st.last_synced_at = Some(Local::now().to_rfc3339());
+                            let mut st = lock_state(&state_clone);
+                            st.last_synced_at = Some(Local::now().to_rfc3339());
+                            if let Ok(json) = serde_json::to_string(&updated_payload) {
+                                let _ = request.respond(json_response(200, &json));
+                                continue;
                             }
-                            let json = serde_json::to_string(&updated_payload).unwrap();
-                            let header = Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap();
-                            let res = Response::from_string(json).with_header(header);
-                            let _ = request.respond(res);
-                            continue;
                         }
                     }
                 }
 
-                let header = Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap();
-                let res = Response::from_string(r#"{"error":"Sync failed"}"#)
-                    .with_status_code(500)
-                    .with_header(header);
-                let _ = request.respond(res);
+                let _ = request.respond(json_response(500, r#"{"error":"Sync failed"}"#));
                 continue;
             }
 
@@ -258,13 +263,33 @@ pub fn pair_spoke_device(
             .json::<PairResponse>()
             .map_err(|e| format!("Failed to parse response: {}", e))?;
 
-        let mut st = shared_state.lock().map_err(|e| e.to_string())?;
-        st.mode = "SPOKE".to_string();
-        st.hub_ip = Some(clean_ip.to_string());
-        st.auth_token = Some(pair_res.auth_token);
-        st.is_connected = true;
-        st.error_message = None;
-        return Ok(st.to_status());
+        {
+            let mut st = lock_state(&shared_state);
+            st.mode = "SPOKE".to_string();
+            st.hub_ip = Some(clean_ip.to_string());
+            st.auth_token = Some(pair_res.auth_token.clone());
+            st.is_connected = true;
+            st.error_message = None;
+
+            if let Ok(conn) = Connection::open(&st.db_path) {
+                let _ = save_sync_config(
+                    &conn,
+                    "SPOKE",
+                    Some(clean_ip),
+                    Some(&pair_res.auth_token),
+                    None,
+                );
+            }
+        }
+
+        // Auto sync all data immediately after connecting as a spoke
+        let sync_res = trigger_sync_now(shared_state.clone());
+        if let Err(e) = sync_res {
+            eprintln!("Auto-sync on spoke pairing encountered warning: {}", e);
+        }
+
+        let st = lock_state(&shared_state);
+        Ok(st.to_status())
     } else {
         Err("Pairing rejected by Hub. Please check pairing code.".to_string())
     }
@@ -272,7 +297,7 @@ pub fn pair_spoke_device(
 
 pub fn trigger_sync_now(shared_state: SharedSyncState) -> Result<SyncStatus, String> {
     let (hub_ip, auth_token, db_path) = {
-        let st = shared_state.lock().map_err(|e| e.to_string())?;
+        let st = lock_state(&shared_state);
         if st.mode != "SPOKE" {
             return Ok(st.to_status());
         }
@@ -304,13 +329,13 @@ pub fn trigger_sync_now(shared_state: SharedSyncState) -> Result<SyncStatus, Str
 
         import_sync_data(&conn, &hub_payload).map_err(|e| e.to_string())?;
 
-        let mut st = shared_state.lock().map_err(|e| e.to_string())?;
+        let mut st = lock_state(&shared_state);
         st.last_synced_at = Some(Local::now().to_rfc3339());
         st.is_connected = true;
         st.error_message = None;
         Ok(st.to_status())
     } else {
-        let mut st = shared_state.lock().map_err(|e| e.to_string())?;
+        let mut st = lock_state(&shared_state);
         st.is_connected = false;
         st.error_message = Some("Sync failed with Hub".to_string());
         Err("Hub returned error status during sync".to_string())
