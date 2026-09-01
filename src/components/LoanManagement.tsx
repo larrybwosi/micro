@@ -6,17 +6,17 @@ import {
   CheckCircle2, 
   XCircle, 
   DollarSign, 
-  Calendar, 
-  FileText, 
   X, 
   Clock, 
   Check, 
-  Receipt,
-  AlertCircle
+  AlertCircle,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Loan, Borrower, LoanProduct, ScheduleItem, User } from '../types';
 import { api } from '../services/api';
 import { formatCurrency, formatDate } from '../lib/utils';
+import { exportLoansCSV } from '../lib/exportUtils';
+import { parseApiError } from '../lib/errorUtils';
 
 interface LoanManagementProps {
   loans: Loan[];
@@ -36,6 +36,7 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Application Form
   const [borrowerSearchTerm, setBorrowerSearchTerm] = useState('');
@@ -61,6 +62,7 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
     const defaultBorrower = borrowers[0]?.id || 0;
     const defaultProduct = products[0]?.id || 0;
     setBorrowerSearchTerm('');
+    setErrorMessage(null);
     setNewLoanData({
       borrower_id: defaultBorrower,
       loan_product_id: defaultProduct,
@@ -102,8 +104,18 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
 
   const handleCreateLoanSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
+
     const product = products.find((p) => p.id === newLoanData.loan_product_id);
-    if (!product) return;
+    if (!product) {
+      setErrorMessage('Please select a valid loan product.');
+      return;
+    }
+
+    if (!newLoanData.borrower_id) {
+      setErrorMessage('Please select a valid borrower.');
+      return;
+    }
 
     const originationFee = (newLoanData.principal_amount * product.origination_fee_percent) / 100;
 
@@ -127,7 +139,7 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
       setIsNewLoanModalOpen(false);
       onRefresh();
     } catch (err) {
-      alert('Failed to submit loan application: ' + err);
+      setErrorMessage(parseApiError(err));
     }
   };
 
@@ -137,7 +149,7 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
         await api.updateLoanStatus(loanId, status, notes);
         onRefresh();
       } catch (err) {
-        alert('Failed to update loan status: ' + err);
+        alert('Failed to update loan status: ' + parseApiError(err));
       }
     }
   };
@@ -149,8 +161,12 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
       setScheduleItems(items);
       setIsScheduleModalOpen(true);
     } catch (err) {
-      alert('Failed to fetch loan repayment schedule: ' + err);
+      alert('Failed to fetch loan repayment schedule: ' + parseApiError(err));
     }
+  };
+
+  const handleExportLoansCSV = () => {
+    exportLoansCSV(filteredLoans);
   };
 
   const getStatusBadge = (status: string) => {
@@ -206,6 +222,15 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
               className="pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-xs w-56 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
+
+          <button
+            onClick={handleExportLoansCSV}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold px-3.5 py-2 rounded-xs shadow-md shadow-emerald-600/20 flex items-center gap-2 transition-all"
+            title="Export Loans Portfolio (CSV)"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            Export Loans CSV
+          </button>
 
           <button
             onClick={handleOpenNewLoanModal}
@@ -328,6 +353,13 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            {errorMessage && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xs text-red-700 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
 
             <form onSubmit={handleCreateLoanSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">

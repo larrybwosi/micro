@@ -1,16 +1,14 @@
 import React, { useState } from 'react';
 import { 
-  BarChart3, 
-  Download, 
   FileSpreadsheet, 
-  FileText, 
   ShieldCheck, 
   Search, 
-  TrendingUp,
-  Database
+  Database,
+  Users
 } from 'lucide-react';
 import { Loan, Borrower } from '../types';
-import { formatCurrency, formatDate } from '../lib/utils';
+import { formatCurrency } from '../lib/utils';
+import { exportLoansCSV, exportBorrowersCSV } from '../lib/exportUtils';
 
 interface ReportsAuditProps {
   loans: Loan[];
@@ -18,7 +16,6 @@ interface ReportsAuditProps {
 }
 
 export const ReportsAudit: React.FC<ReportsAuditProps> = ({ loans, borrowers }) => {
-  const [reportType, setReportType] = useState<'PORTFOLIO' | 'REPAYMENTS' | 'AUDIT'>('PORTFOLIO');
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredLoans = loans.filter((l) =>
@@ -27,48 +24,12 @@ export const ReportsAudit: React.FC<ReportsAuditProps> = ({ loans, borrowers }) 
       .includes(searchTerm.toLowerCase())
   );
 
-  const exportToCSV = () => {
-    const headers = [
-      'Loan Number',
-      'Borrower Name',
-      'Product Name',
-      'Principal Amount',
-      'Interest Rate',
-      'Interest Method',
-      'Term (Months)',
-      'Total Payable',
-      'Amount Paid',
-      'Balance Remaining',
-      'Status',
-      'Application Date',
-    ];
+  const handleExportLoansCSV = () => {
+    exportLoansCSV(filteredLoans);
+  };
 
-    const rows = loans.map((l) => [
-      l.loan_number,
-      `"${l.borrower_name || ''}"`,
-      `"${l.product_name || ''}"`,
-      l.principal_amount,
-      l.annual_interest_rate,
-      l.interest_method,
-      l.term_months,
-      l.total_payable || 0,
-      l.amount_paid || 0,
-      l.balance_remaining || 0,
-      l.status,
-      l.application_date,
-    ]);
-
-    const csvContent =
-      'data:text/csv;charset=utf-8,' +
-      [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `microfinance_portfolio_report_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleExportBorrowersCSV = () => {
+    exportBorrowersCSV(borrowers);
   };
 
   const exportJSONBackup = () => {
@@ -94,18 +55,27 @@ export const ReportsAudit: React.FC<ReportsAuditProps> = ({ loans, borrowers }) 
           <p className="text-slate-500 text-xs mt-0.5">Generate portfolio analytics, audit history, and export financial datasets</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button
-            onClick={exportToCSV}
+            onClick={handleExportLoansCSV}
             className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs px-4 py-2.5 rounded-xs shadow-md shadow-emerald-600/20 flex items-center gap-2 transition-all"
+            title="Export Loan Portfolio Spreadsheet (CSV)"
           >
-            <FileSpreadsheet className="w-4 h-4" /> Export CSV Report
+            <FileSpreadsheet className="w-4 h-4" /> Export Loans CSV
+          </button>
+          <button
+            onClick={handleExportBorrowersCSV}
+            className="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs px-4 py-2.5 rounded-xs shadow-md shadow-blue-600/20 flex items-center gap-2 transition-all"
+            title="Export Borrowers Directory Spreadsheet (CSV)"
+          >
+            <Users className="w-4 h-4" /> Export Borrowers CSV
           </button>
           <button
             onClick={exportJSONBackup}
             className="bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs px-4 py-2.5 rounded-xs shadow-md flex items-center gap-2 transition-all"
+            title="Export Full JSON Database Backup"
           >
-            <Database className="w-4 h-4" /> Export System JSON Backup
+            <Database className="w-4 h-4" /> System JSON Backup
           </button>
         </div>
       </div>

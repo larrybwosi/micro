@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
 import { 
   PlusCircle, 
-  Layers, 
   Edit3, 
   Trash2, 
   X, 
   Percent, 
   Calendar, 
   DollarSign, 
-  HelpCircle 
+  AlertCircle
 } from 'lucide-react';
 import { LoanProduct, User } from '../types';
 import { api } from '../services/api';
 import { formatCurrency } from '../lib/utils';
+import { parseApiError } from '../lib/errorUtils';
 
 interface LoanProductsConfiguratorProps {
   products: LoanProduct[];
@@ -24,6 +24,7 @@ export const LoanProductsConfigurator: React.FC<LoanProductsConfiguratorProps> =
   const isAdmin = currentUser?.role === 'ADMIN';
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<LoanProduct | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<Partial<LoanProduct>>({
     name: '',
@@ -43,9 +44,19 @@ export const LoanProductsConfigurator: React.FC<LoanProductsConfiguratorProps> =
 
   const handleOpenCreateModal = () => {
     setEditingProduct(null);
+    setErrorMessage(null);
+
+    // Auto-generate a guaranteed non-colliding code
+    let codeNum = products.length + 1;
+    let autoCode = `LP-${String(codeNum).padStart(2, '0')}`;
+    while (products.some((p) => p.code.toUpperCase() === autoCode.toUpperCase())) {
+      codeNum++;
+      autoCode = `LP-${String(codeNum).padStart(2, '0')}`;
+    }
+
     setFormData({
       name: '',
-      code: `LP-${Math.floor(10 + Math.random() * 90)}`,
+      code: autoCode,
       description: '',
       interest_method: 'REDUCING_BALANCE',
       annual_interest_rate: 12.0,
@@ -63,22 +74,35 @@ export const LoanProductsConfigurator: React.FC<LoanProductsConfiguratorProps> =
 
   const handleOpenEditModal = (product: LoanProduct) => {
     setEditingProduct(product);
+    setErrorMessage(null);
     setFormData({ ...product });
     setIsModalOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
+
+    const trimmedCode = (formData.code || '').trim();
+    const duplicate = products.find(
+      (p) => p.code.trim().toLowerCase() === trimmedCode.toLowerCase() && p.id !== editingProduct?.id
+    );
+
+    if (duplicate) {
+      setErrorMessage(`A loan product with code '${trimmedCode}' already exists.`);
+      return;
+    }
+
     try {
       if (editingProduct) {
-        await api.updateLoanProduct(formData as LoanProduct);
+        await api.updateLoanProduct({ ...formData, code: trimmedCode } as LoanProduct);
       } else {
-        await api.createLoanProduct(formData as LoanProduct);
+        await api.createLoanProduct({ ...formData, code: trimmedCode } as LoanProduct);
       }
       setIsModalOpen(false);
       onRefresh();
     } catch (err) {
-      alert('Failed to save loan product: ' + err);
+      setErrorMessage(parseApiError(err));
     }
   };
 
@@ -88,7 +112,7 @@ export const LoanProductsConfigurator: React.FC<LoanProductsConfiguratorProps> =
         await api.deleteLoanProduct(id);
         onRefresh();
       } catch (err) {
-        alert('Failed to delete loan product: ' + err);
+        alert('Failed to delete loan product: ' + parseApiError(err));
       }
     }
   };
@@ -214,6 +238,13 @@ export const LoanProductsConfigurator: React.FC<LoanProductsConfiguratorProps> =
               </button>
             </div>
 
+            {errorMessage && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xs text-red-700 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2">
@@ -235,7 +266,7 @@ export const LoanProductsConfigurator: React.FC<LoanProductsConfiguratorProps> =
                     placeholder="MBL-01"
                     value={formData.code}
                     onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-mono"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-mono uppercase"
                   />
                 </div>
               </div>

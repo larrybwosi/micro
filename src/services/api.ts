@@ -52,7 +52,7 @@ async function invokeTauri<T>(command: string, args?: Record<string, unknown>): 
 }
 
 function mockInvokeFallback<T>(command: string, args?: Record<string, unknown>): Promise<T> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     setTimeout(() => {
       switch (command) {
         case 'get_borrowers':
@@ -60,6 +60,10 @@ function mockInvokeFallback<T>(command: string, args?: Record<string, unknown>):
           break;
         case 'create_borrower_cmd': {
           const b = args?.borrower as Borrower;
+          if (mockBorrowers.some((item) => item.national_id.trim().toLowerCase() === b.national_id.trim().toLowerCase())) {
+            reject(new Error('UNIQUE constraint failed: borrowers.national_id'));
+            return;
+          }
           const newB = { ...b, id: mockBorrowers.length + 1, created_at: new Date().toISOString() };
           mockBorrowers.unshift(newB);
           resolve(newB.id as unknown as T);
@@ -67,6 +71,10 @@ function mockInvokeFallback<T>(command: string, args?: Record<string, unknown>):
         }
         case 'update_borrower_cmd': {
           const b = args?.borrower as Borrower;
+          if (mockBorrowers.some((item) => item.id !== b.id && item.national_id.trim().toLowerCase() === b.national_id.trim().toLowerCase())) {
+            reject(new Error('UNIQUE constraint failed: borrowers.national_id'));
+            return;
+          }
           mockBorrowers = mockBorrowers.map((item) => (item.id === b.id ? b : item));
           resolve(undefined as unknown as T);
           break;
@@ -82,6 +90,10 @@ function mockInvokeFallback<T>(command: string, args?: Record<string, unknown>):
           break;
         case 'create_loan_product_cmd': {
           const p = args?.product as LoanProduct;
+          if (mockLoanProducts.some((item) => item.code.trim().toLowerCase() === p.code.trim().toLowerCase())) {
+            reject(new Error('UNIQUE constraint failed: loan_products.code'));
+            return;
+          }
           const newP = { ...p, id: mockLoanProducts.length + 1, created_at: new Date().toISOString() };
           mockLoanProducts.unshift(newP);
           resolve(newP.id as unknown as T);
@@ -89,6 +101,10 @@ function mockInvokeFallback<T>(command: string, args?: Record<string, unknown>):
         }
         case 'update_loan_product_cmd': {
           const p = args?.product as LoanProduct;
+          if (mockLoanProducts.some((item) => item.id !== p.id && item.code.trim().toLowerCase() === p.code.trim().toLowerCase())) {
+            reject(new Error('UNIQUE constraint failed: loan_products.code'));
+            return;
+          }
           mockLoanProducts = mockLoanProducts.map((item) => (item.id === p.id ? p : item));
           resolve(undefined as unknown as T);
           break;
@@ -110,13 +126,21 @@ function mockInvokeFallback<T>(command: string, args?: Record<string, unknown>):
         }
         case 'create_loan_cmd': {
           const loanData = args?.loan as Loan;
+          let loanNum = loanData.loan_number;
+          if (!loanNum || loanNum.trim() === '') {
+            loanNum = `LN-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
+          } else if (mockLoans.some((l) => l.loan_number === loanNum)) {
+            reject(new Error('UNIQUE constraint failed: loans.loan_number'));
+            return;
+          }
+
           const borrower = mockBorrowers.find((b) => b.id === loanData.borrower_id);
           const product = mockLoanProducts.find((p) => p.id === loanData.loan_product_id);
           const newId = mockLoans.length + 1;
           const newLoan: Loan = {
             ...loanData,
             id: newId,
-            loan_number: `LN-${Date.now().toString().slice(-8)}`,
+            loan_number: loanNum,
             status: 'PENDING_APPROVAL',
             borrower_name: borrower ? `${borrower.first_name} ${borrower.last_name}` : 'Unknown',
             product_name: product ? product.name : 'Unknown',
@@ -159,10 +183,12 @@ function mockInvokeFallback<T>(command: string, args?: Record<string, unknown>):
           const notes = args?.notes as string;
           const payment_date = (args?.payment_date as string) || new Date().toISOString().split('T')[0];
 
+          const receiptNum = `REC-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
+
           const newTx: Transaction = {
             id: mockTransactions.length + 1,
             loan_id: loanId,
-            receipt_number: `REC-${Date.now().toString().slice(-8)}`,
+            receipt_number: receiptNum,
             transaction_date: payment_date,
             amount,
             principal_component: amount * 0.9,
@@ -203,6 +229,10 @@ function mockInvokeFallback<T>(command: string, args?: Record<string, unknown>):
           break;
         case 'create_user_cmd': {
           const u = args?.user as User;
+          if (mockUsers.some((item) => item.username.trim().toLowerCase() === u.username.trim().toLowerCase())) {
+            reject(new Error('UNIQUE constraint failed: users.username'));
+            return;
+          }
           const newU = { ...u, id: mockUsers.length + 1, created_at: new Date().toISOString() };
           mockUsers.push(newU);
           resolve(newU.id as unknown as T);
@@ -210,6 +240,10 @@ function mockInvokeFallback<T>(command: string, args?: Record<string, unknown>):
         }
         case 'update_user_cmd': {
           const u = args?.user as User;
+          if (mockUsers.some((item) => item.id !== u.id && item.username.trim().toLowerCase() === u.username.trim().toLowerCase())) {
+            reject(new Error('UNIQUE constraint failed: users.username'));
+            return;
+          }
           mockUsers = mockUsers.map((item) => (item.id === u.id ? { ...item, ...u } : item));
           resolve(undefined as unknown as T);
           break;

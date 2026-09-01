@@ -646,7 +646,11 @@ pub fn get_all_loans(conn: &Connection, status_filter: Option<String>) -> Result
 
 pub fn create_loan(conn: &Connection, loan: Loan) -> Result<i64> {
     let loan_number = if loan.loan_number.trim().is_empty() {
-        format!("LN-{}", Local::now().format("%Y%m%d%H%M%S"))
+        format!(
+            "LN-{}-{:03}",
+            Local::now().format("%Y%m%d%H%M%S"),
+            Local::now().timestamp_subsec_millis() % 1000
+        )
     } else {
         loan.loan_number.clone()
     };
@@ -791,7 +795,11 @@ pub fn record_repayment(
     notes: String,
     payment_date: Option<String>,
 ) -> Result<Transaction> {
-    let receipt_number = format!("REC-{}", Local::now().format("%Y%m%d%H%M%S"));
+    let receipt_number = format!(
+        "REC-{}-{:03}",
+        Local::now().format("%Y%m%d%H%M%S"),
+        Local::now().timestamp_subsec_millis() % 1000
+    );
     let today = Local::now().format("%Y-%m-%d").to_string();
     let tx_date = payment_date
         .filter(|d| !d.trim().is_empty())
