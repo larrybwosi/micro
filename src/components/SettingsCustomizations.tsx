@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Users, Plus, Edit2, Trash2, CheckCircle, Shield, Building, DollarSign, Percent, Palette } from 'lucide-react';
+import { Settings, Users, Plus, Edit2, Trash2, CheckCircle, Shield, Building, DollarSign, Percent, Palette, AlertCircle } from 'lucide-react';
 import { PlatformSettings, User as UserType } from '../types';
 import { api } from '../services/api';
+import { parseApiError } from '../lib/errorUtils';
 
 interface SettingsCustomizationsProps {
   currentUser: UserType;
@@ -24,6 +25,7 @@ export function SettingsCustomizations({ currentUser, onSettingsUpdated }: Setti
   // User modal state
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserType | null>(null);
+  const [userErrorMessage, setUserErrorMessage] = useState<string | null>(null);
   const [userFormData, setUserFormData] = useState<Partial<UserType>>({
     username: '',
     password: '',
@@ -60,11 +62,12 @@ export function SettingsCustomizations({ currentUser, onSettingsUpdated }: Setti
       if (onSettingsUpdated) onSettingsUpdated(settings);
       setTimeout(() => setSaveSuccess(null), 3000);
     } catch (err) {
-      console.error('Failed to update settings:', err);
+      alert('Failed to update settings: ' + parseApiError(err));
     }
   };
 
   const handleOpenUserModal = (userToEdit?: UserType) => {
+    setUserErrorMessage(null);
     if (userToEdit) {
       setEditingUser(userToEdit);
       setUserFormData({
@@ -90,11 +93,23 @@ export function SettingsCustomizations({ currentUser, onSettingsUpdated }: Setti
   const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAdmin) return;
+    setUserErrorMessage(null);
+
+    const trimmedUsername = (userFormData.username || '').trim();
+    const duplicate = users.find(
+      (u) => u.username.trim().toLowerCase() === trimmedUsername.toLowerCase() && u.id !== editingUser?.id
+    );
+
+    if (duplicate) {
+      setUserErrorMessage(`The username '${trimmedUsername}' is already taken.`);
+      return;
+    }
+
     try {
       if (editingUser && editingUser.id) {
         await api.updateUser({
           id: editingUser.id,
-          username: userFormData.username || '',
+          username: trimmedUsername,
           password: userFormData.password || undefined,
           full_name: userFormData.full_name || '',
           role: userFormData.role as 'ADMIN' | 'USER',
@@ -103,7 +118,7 @@ export function SettingsCustomizations({ currentUser, onSettingsUpdated }: Setti
         setSaveSuccess('User updated successfully.');
       } else {
         await api.createUser({
-          username: userFormData.username || '',
+          username: trimmedUsername,
           password: userFormData.password || '123456',
           full_name: userFormData.full_name || '',
           role: userFormData.role as 'ADMIN' | 'USER',
@@ -115,7 +130,7 @@ export function SettingsCustomizations({ currentUser, onSettingsUpdated }: Setti
       loadSettingsAndUsers();
       setTimeout(() => setSaveSuccess(null), 3000);
     } catch (err) {
-      console.error('Failed to save user:', err);
+      setUserErrorMessage(parseApiError(err));
     }
   };
 
@@ -132,7 +147,7 @@ export function SettingsCustomizations({ currentUser, onSettingsUpdated }: Setti
         loadSettingsAndUsers();
         setTimeout(() => setSaveSuccess(null), 3000);
       } catch (err) {
-        console.error('Failed to delete user:', err);
+        alert('Failed to delete user: ' + parseApiError(err));
       }
     }
   };
@@ -362,6 +377,14 @@ export function SettingsCustomizations({ currentUser, onSettingsUpdated }: Setti
             <h2 className="text-lg font-bold text-slate-800 mb-4">
               {editingUser ? 'Edit User Account' : 'Create New User'}
             </h2>
+
+            {userErrorMessage && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xs text-red-700 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{userErrorMessage}</span>
+              </div>
+            )}
+
             <form onSubmit={handleSaveUser} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold uppercase text-slate-600 mb-1">Full Name</label>

@@ -4,14 +4,14 @@ import {
   DollarSign, 
   Printer, 
   CheckCircle2, 
-  ArrowRight, 
   History, 
-  CreditCard,
-  Download
+  FileSpreadsheet
 } from 'lucide-react';
 import { Loan, Transaction } from '../types';
 import { api } from '../services/api';
-import { formatCurrency, formatDate } from '../lib/utils';
+import { formatCurrency } from '../lib/utils';
+import { exportRepaymentsCSV } from '../lib/exportUtils';
+import { parseApiError } from '../lib/errorUtils';
 
 interface RepaymentsProcessingProps {
   loans: Loan[];
@@ -70,7 +70,7 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
       setRecentTransactions((prev) => [tx, ...prev]);
       onRefresh();
     } catch (err) {
-      alert('Repayment recording failed: ' + err);
+      alert('Repayment recording failed: ' + parseApiError(err));
     } finally {
       setIsProcessing(false);
     }
@@ -80,14 +80,27 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
     window.print();
   };
 
+  const handleExportRepaymentsCSV = () => {
+    exportRepaymentsCSV(recentTransactions, loans);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white p-5 rounded-xs border border-slate-200/80 shadow-sm flex items-center justify-between">
+      <div className="bg-white p-5 rounded-xs border border-slate-200/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-slate-900">Repayment Processing & Receipt Generator</h2>
           <p className="text-slate-500 text-xs mt-0.5">Collect loan payments, auto-allocate principal & interest, and issue printable receipts</p>
         </div>
+
+        {recentTransactions.length > 0 && (
+          <button
+            onClick={handleExportRepaymentsCSV}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs px-4 py-2.5 rounded-xs shadow-md shadow-emerald-600/20 flex items-center gap-2 transition-all self-start sm:self-auto"
+          >
+            <FileSpreadsheet className="w-4 h-4" /> Export Repayments CSV
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -219,10 +232,20 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
 
           {/* Recent Repayment History */}
           <div className="bg-white rounded-xs border border-slate-200/80 p-6 shadow-sm">
-            <h3 className="font-bold text-slate-900 text-base mb-4 flex items-center gap-2">
-              <History className="w-5 h-5 text-slate-500" />
-              Recent Repayments Log
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                <History className="w-5 h-5 text-slate-500" />
+                Recent Repayments Log
+              </h3>
+              {recentTransactions.length > 0 && (
+                <button
+                  onClick={handleExportRepaymentsCSV}
+                  className="text-emerald-700 hover:text-emerald-800 text-xs font-semibold flex items-center gap-1.5"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" /> Export Log
+                </button>
+              )}
+            </div>
             <div className="space-y-3">
               {recentTransactions.length === 0 ? (
                 <p className="text-xs text-slate-400 py-4 text-center">No transactions recorded for this loan yet.</p>

@@ -6,14 +6,16 @@ import {
   Trash2, 
   Mail, 
   Phone, 
-  CreditCard, 
   MapPin, 
   X, 
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Borrower } from '../types';
 import { api } from '../services/api';
+import { exportBorrowersCSV } from '../lib/exportUtils';
+import { parseApiError } from '../lib/errorUtils';
 
 interface BorrowerManagementProps {
   borrowers: Borrower[];
@@ -24,6 +26,7 @@ export const BorrowerManagement: React.FC<BorrowerManagementProps> = ({ borrower
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBorrower, setEditingBorrower] = useState<Borrower | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<Partial<Borrower>>({
     first_name: '',
@@ -44,6 +47,7 @@ export const BorrowerManagement: React.FC<BorrowerManagementProps> = ({ borrower
 
   const handleOpenCreateModal = () => {
     setEditingBorrower(null);
+    setErrorMessage(null);
     setFormData({
       first_name: '',
       last_name: '',
@@ -59,12 +63,26 @@ export const BorrowerManagement: React.FC<BorrowerManagementProps> = ({ borrower
 
   const handleOpenEditModal = (borrower: Borrower) => {
     setEditingBorrower(borrower);
+    setErrorMessage(null);
     setFormData({ ...borrower });
     setIsModalOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
+
+    // Client-side unique check for national_id
+    const trimmedId = (formData.national_id || '').trim();
+    const duplicate = borrowers.find(
+      (b) => b.national_id.trim().toLowerCase() === trimmedId.toLowerCase() && b.id !== editingBorrower?.id
+    );
+
+    if (duplicate) {
+      setErrorMessage(`A borrower with National ID '${trimmedId}' already exists.`);
+      return;
+    }
+
     try {
       if (editingBorrower) {
         await api.updateBorrower(formData as Borrower);
@@ -74,7 +92,7 @@ export const BorrowerManagement: React.FC<BorrowerManagementProps> = ({ borrower
       setIsModalOpen(false);
       onRefresh();
     } catch (err) {
-      alert('Failed to save borrower details: ' + err);
+      setErrorMessage(parseApiError(err));
     }
   };
 
@@ -84,9 +102,13 @@ export const BorrowerManagement: React.FC<BorrowerManagementProps> = ({ borrower
         await api.deleteBorrower(id);
         onRefresh();
       } catch (err) {
-        alert('Failed to delete borrower: ' + err);
+        alert(parseApiError(err));
       }
     }
+  };
+
+  const handleExportCSV = () => {
+    exportBorrowersCSV(filteredBorrowers);
   };
 
   return (
@@ -109,6 +131,14 @@ export const BorrowerManagement: React.FC<BorrowerManagementProps> = ({ borrower
               className="pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-xs w-64 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
             />
           </div>
+          <button
+            onClick={handleExportCSV}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold px-3.5 py-2 rounded-xs shadow-md shadow-emerald-600/20 flex items-center gap-2 transition-all"
+            title="Export Borrowers Spreadsheet (CSV)"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            Export CSV
+          </button>
           <button
             onClick={handleOpenCreateModal}
             className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2 rounded-xs shadow-md shadow-blue-600/20 flex items-center gap-2 transition-all"
@@ -219,6 +249,13 @@ export const BorrowerManagement: React.FC<BorrowerManagementProps> = ({ borrower
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            {errorMessage && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xs text-red-700 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
