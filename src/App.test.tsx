@@ -125,4 +125,11 @@ describe('Application logic tests', () => {
       expect(generateCode(gapProducts)).toBe('LP-04');
     });
   });
+
+  describe('API command and Loan status update tests', () => {
+    it('updates loan status via api.updateLoanStatus without error', async () => {
+      const { api } = await import('./services/api');
+      await expect(api.updateLoanStatus(1, 'APPROVED', 'Approved in test')).resolves.toBeUndefined();
+    });
+  });
 });

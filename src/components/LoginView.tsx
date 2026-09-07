@@ -90,10 +90,6 @@ export function LoginView({ onLoginSuccess }: LoginViewProps) {
             {loading ? 'Authenticating...' : 'Sign In'}
           </button>
         </form>
-
-        <div className="mt-6 pt-4 border-t border-slate-100 text-center">
-          <p className="text-xs text-slate-400">Default Admin Credentials: admin / admin123</p>
-        </div>
       </div>
     </div>
   );

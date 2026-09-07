@@ -116,7 +116,7 @@ function mockInvokeFallback<T>(command: string, args?: Record<string, unknown>):
           break;
         }
         case 'get_loans_cmd': {
-          const filter = args?.status_filter as string | undefined;
+          const filter = (args?.statusFilter ?? args?.status_filter) as string | undefined;
           if (filter) {
             resolve(mockLoans.filter((l) => l.status === filter) as unknown as T);
           } else {
@@ -154,7 +154,7 @@ function mockInvokeFallback<T>(command: string, args?: Record<string, unknown>):
           break;
         }
         case 'update_loan_status_cmd': {
-          const loanId = args?.loan_id as number;
+          const loanId = (args?.loanId ?? args?.loan_id) as number;
           const status = args?.status as Loan['status'];
           mockLoans = mockLoans.map((l) => {
             if (l.id === loanId) {
@@ -166,22 +166,22 @@ function mockInvokeFallback<T>(command: string, args?: Record<string, unknown>):
           break;
         }
         case 'get_loan_schedule_cmd': {
-          const loanId = args?.loan_id as number;
+          const loanId = (args?.loanId ?? args?.loan_id) as number;
           resolve((mockSchedules[loanId] || []) as unknown as T);
           break;
         }
         case 'get_loan_transactions_cmd': {
-          const loanId = args?.loan_id as number;
+          const loanId = (args?.loanId ?? args?.loan_id) as number;
           resolve(mockTransactions.filter((t) => t.loan_id === loanId) as unknown as T);
           break;
         }
         case 'record_repayment_cmd': {
-          const loanId = args?.loan_id as number;
+          const loanId = (args?.loanId ?? args?.loan_id) as number;
           const amount = args?.amount as number;
-          const payment_method = args?.payment_method as Transaction['payment_method'];
+          const payment_method = (args?.paymentMethod ?? args?.payment_method) as Transaction['payment_method'];
           const reference = args?.reference as string;
           const notes = args?.notes as string;
-          const payment_date = (args?.payment_date as string) || new Date().toISOString().split('T')[0];
+          const payment_date = ((args?.paymentDate ?? args?.payment_date) as string) || new Date().toISOString().split('T')[0];
 
           const receiptNum = `REC-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
 
@@ -279,9 +279,9 @@ function mockInvokeFallback<T>(command: string, args?: Record<string, unknown>):
         }
         case 'calculate_preview_schedule_cmd': {
           const principal = Math.max(0, (args?.principal as number) || 0);
-          const rate = Math.max(0, (args?.annual_rate as number) || 0);
-          const term = Math.max(0, (args?.term_months as number) || 0);
-          const method = (args?.interest_method as string) || 'FLAT_RATE';
+          const rate = Math.max(0, ((args?.annualRate ?? args?.annual_rate) as number) || 0);
+          const term = Math.max(0, ((args?.termMonths ?? args?.term_months) as number) || 0);
+          const method = ((args?.interestMethod ?? args?.interest_method) as string) || 'FLAT_RATE';
           const items: ScheduleItem[] = [];
 
           if (principal <= 0 || term <= 0) {
@@ -328,7 +328,7 @@ function mockInvokeFallback<T>(command: string, args?: Record<string, unknown>):
           mockSyncStatus = {
             ...mockSyncStatus,
             mode: 'SPOKE',
-            hub_ip: (args?.hub_ip as string) || '192.168.1.50',
+            hub_ip: ((args?.hubIp ?? args?.hub_ip) as string) || '192.168.1.50',
             auth_token: 'TOK-MOCK-999',
             is_connected: true,
             last_synced_at: new Date().toISOString(),
@@ -373,23 +373,23 @@ export const api = {
   updateLoanProduct: (product: LoanProduct) => invokeTauri<void>('update_loan_product_cmd', { product }),
   deleteLoanProduct: (id: number) => invokeTauri<void>('delete_loan_product_cmd', { id }),
 
-  getLoans: (status_filter?: string) => invokeTauri<Loan[]>('get_loans_cmd', { status_filter }),
+  getLoans: (status_filter?: string) => invokeTauri<Loan[]>('get_loans_cmd', { statusFilter: status_filter }),
   createLoan: (loan: Loan) => invokeTauri<number>('create_loan_cmd', { loan }),
-  updateLoanStatus: (loan_id: number, status: string, notes?: string) => invokeTauri<void>('update_loan_status_cmd', { loan_id, status, notes }),
+  updateLoanStatus: (loan_id: number, status: string, notes?: string) => invokeTauri<void>('update_loan_status_cmd', { loanId: loan_id, status, notes }),
 
-  getLoanSchedule: (loan_id: number) => invokeTauri<ScheduleItem[]>('get_loan_schedule_cmd', { loan_id }),
-  getLoanTransactions: (loan_id: number) => invokeTauri<Transaction[]>('get_loan_transactions_cmd', { loan_id }),
+  getLoanSchedule: (loan_id: number) => invokeTauri<ScheduleItem[]>('get_loan_schedule_cmd', { loanId: loan_id }),
+  getLoanTransactions: (loan_id: number) => invokeTauri<Transaction[]>('get_loan_transactions_cmd', { loanId: loan_id }),
   recordRepayment: (loan_id: number, amount: number, payment_method: string, reference: string, notes: string, payment_date?: string) =>
-    invokeTauri<Transaction>('record_repayment_cmd', { loan_id, amount, payment_method, reference, notes, payment_date }),
+    invokeTauri<Transaction>('record_repayment_cmd', { loanId: loan_id, amount, paymentMethod: payment_method, reference, notes, paymentDate: payment_date }),
 
   getDashboardStats: () => invokeTauri<DashboardStats>('get_dashboard_stats_cmd'),
   calculatePreviewSchedule: (principal: number, annual_rate: number, term_months: number, interest_method: string, start_date: string) =>
-    invokeTauri<ScheduleItem[]>('calculate_preview_schedule_cmd', { principal, annual_rate, term_months, interest_method, start_date }),
+    invokeTauri<ScheduleItem[]>('calculate_preview_schedule_cmd', { principal, annualRate: annual_rate, termMonths: term_months, interestMethod: interest_method, startDate: start_date }),
 
   getSyncStatus: () => invokeTauri<SyncStatus>('get_sync_status_cmd'),
   startHub: () => invokeTauri<SyncStatus>('start_hub_cmd'),
   pairSpoke: (hub_ip: string, pairing_code: string, device_name: string) =>
-    invokeTauri<SyncStatus>('pair_spoke_cmd', { hub_ip, pairing_code, device_name }),
+    invokeTauri<SyncStatus>('pair_spoke_cmd', { hubIp: hub_ip, pairingCode: pairing_code, deviceName: device_name }),
   triggerSync: () => invokeTauri<SyncStatus>('trigger_sync_cmd'),
   getLocalIp: () => invokeTauri<string>('get_local_ip_cmd'),
 };
