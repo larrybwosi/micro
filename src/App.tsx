@@ -89,7 +89,7 @@ export function App() {
           {currentTab === 'borrowers' && <BorrowerManagement borrowers={borrowers} onRefresh={loadData} />}
           {currentTab === 'products' && (
             isAdmin ? (
-              <LoanProductsConfigurator products={products} onRefresh={loadData} />
+              <LoanProductsConfigurator products={products} currentUser={currentUser} onRefresh={loadData} />
             ) : (
               <div className="bg-white p-8 rounded-xs text-center text-slate-500 border border-slate-200">
                 Access Restricted: Only Administrators can view or manage the loan configurator.
@@ -99,7 +99,6 @@ export function App() {
           {currentTab === 'loans' && (
             <LoanManagement loans={loans} borrowers={borrowers} products={products} onRefresh={loadData} currentUser={currentUser} />
           )}
-          {currentTab === 'products' && <LoanProductsConfigurator products={products} currentUser={currentUser} onRefresh={loadData} />}
           {currentTab === 'repayments' && <RepaymentsProcessing loans={loans} onRefresh={loadData} />}
           {currentTab === 'reports' && <ReportsAudit loans={loans} borrowers={borrowers} />}
           {currentTab === 'sync' && <SyncEngineView onSyncComplete={loadData} />}
