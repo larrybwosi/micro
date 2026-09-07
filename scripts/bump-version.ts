@@ -4,6 +4,7 @@ import { execSync } from 'child_process';
 
 const rootDir = process.cwd();
 const pkgPath = path.join(rootDir, 'package.json');
+const pkgLockPath = path.join(rootDir, 'package-lock.json');
 const tauriConfPath = path.join(rootDir, 'src-tauri', 'tauri.conf.json');
 const cargoTomlPath = path.join(rootDir, 'src-tauri', 'Cargo.toml');
 
@@ -42,9 +43,19 @@ const tauriConf = JSON.parse(fs.readFileSync(tauriConfPath, 'utf8'));
 tauriConf.version = newVersion;
 fs.writeFileSync(tauriConfPath, JSON.stringify(tauriConf, null, 2) + '\n');
 
+// Update package-lock.json if present
+if (fs.existsSync(pkgLockPath)) {
+  const pkgLock = JSON.parse(fs.readFileSync(pkgLockPath, 'utf8'));
+  pkgLock.version = newVersion;
+  if (pkgLock.packages && pkgLock.packages['']) {
+    pkgLock.packages[''].version = newVersion;
+  }
+  fs.writeFileSync(pkgLockPath, JSON.stringify(pkgLock, null, 2) + '\n');
+}
+
 // Update Cargo.toml
 let cargoToml = fs.readFileSync(cargoTomlPath, 'utf8');
 cargoToml = cargoToml.replace(/^version\s*=\s*"[^"]+"/m, `version = "${newVersion}"`);
 fs.writeFileSync(cargoTomlPath, cargoToml);
 
-console.log(`Successfully bumped version to ${newVersion} across package.json, tauri.conf.json, and Cargo.toml.`);
+console.log(`Successfully bumped version to ${newVersion} across package.json, package-lock.json, tauri.conf.json, and Cargo.toml.`);

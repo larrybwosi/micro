@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Borrower, User } from './types';
+import { Borrower, LoanProduct, User } from './types';
 
 describe('Application logic tests', () => {
   const sampleBorrowers: Borrower[] = [
@@ -56,5 +56,73 @@ describe('Application logic tests', () => {
     expect(isAdmin(adminUser)).toBe(true);
     expect(isAdmin(standardUser)).toBe(false);
     expect(isAdmin(null)).toBe(false);
+  });
+
+  describe('Loan Product logic tests', () => {
+    const sampleProducts: LoanProduct[] = [
+      {
+        id: 1,
+        name: 'Micro Business Loan',
+        code: 'LP-01',
+        description: 'Working capital loan',
+        interest_method: 'REDUCING_BALANCE',
+        annual_interest_rate: 12.0,
+        min_amount: 500,
+        max_amount: 10000,
+        min_term_months: 3,
+        max_term_months: 24,
+        payment_frequency: 'MONTHLY',
+        origination_fee_percent: 1.5,
+        late_fee_percent: 2.0,
+        grace_period_days: 5,
+      },
+      {
+        id: 2,
+        name: 'Emergency Loan',
+        code: 'LP-02',
+        description: 'Short term emergency cash',
+        interest_method: 'FLAT_RATE',
+        annual_interest_rate: 15.0,
+        min_amount: 100,
+        max_amount: 2000,
+        min_term_months: 1,
+        max_term_months: 6,
+        payment_frequency: 'MONTHLY',
+        origination_fee_percent: 1.0,
+        late_fee_percent: 1.5,
+        grace_period_days: 3,
+      },
+    ];
+
+    it('detects duplicate loan product code correctly ignoring case and surrounding spaces', () => {
+      const isDuplicateCode = (code: string, editingProductId?: number) => {
+        const trimmed = code.trim().toLowerCase();
+        return sampleProducts.some(
+          (p) => p.code.trim().toLowerCase() === trimmed && p.id !== editingProductId
+        );
+      };
+
+      expect(isDuplicateCode('LP-01')).toBe(true);
+      expect(isDuplicateCode('  lp-01 ')).toBe(true);
+      expect(isDuplicateCode('LP-01', 1)).toBe(false); // same product being edited
+      expect(isDuplicateCode('LP-03')).toBe(false);
+    });
+
+    it('auto-generates non-colliding loan product code', () => {
+      const generateCode = (products: LoanProduct[]) => {
+        let codeNum = products.length + 1;
+        let autoCode = `LP-${String(codeNum).padStart(2, '0')}`;
+        while (products.some((p) => p.code.toUpperCase() === autoCode.toUpperCase())) {
+          codeNum++;
+          autoCode = `LP-${String(codeNum).padStart(2, '0')}`;
+        }
+        return autoCode;
+      };
+
+      expect(generateCode(sampleProducts)).toBe('LP-03');
+
+      const gapProducts = [...sampleProducts, { ...sampleProducts[0], id: 3, code: 'LP-03' }];
+      expect(generateCode(gapProducts)).toBe('LP-04');
+    });
   });
 });

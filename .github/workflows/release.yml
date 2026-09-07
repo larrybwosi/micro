@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -26,6 +28,27 @@ jobs:
 
       - name: Install Frontend Dependencies
         run: npm ci
+
+      - name: Auto bump version if tag exists
+        shell: bash
+        run: |
+          git fetch --tags
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          TAG_NAME="v${CURRENT_VERSION}"
+          if [ "${GITHUB_REF_TYPE}" != "tag" ] && (git rev-parse "$TAG_NAME" >/dev/null 2>&1 || git rev-parse "refs/tags/$TAG_NAME" >/dev/null 2>&1); then
+            echo "Tag $TAG_NAME already exists. Bumping patch version..."
+            npm run version:bump patch
+            NEW_VERSION=$(node -p "require('./package.json').version")
+            echo "Bumped version from $CURRENT_VERSION to $NEW_VERSION"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/Cargo.toml
+            git commit -m "chore: bump version to $NEW_VERSION [skip ci]"
+            git tag "v${NEW_VERSION}"
+            git push origin main --tags || true
+          else
+            echo "Proceeding with version $CURRENT_VERSION"
+          fi
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
