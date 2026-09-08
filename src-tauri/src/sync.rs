@@ -47,7 +47,7 @@ pub fn generate_pairing_code() -> String {
 }
 
 pub struct SyncEngineState {
-    pub mode: String, // "OFFLINE", "HUB", "SPOKE"
+    pub mode: String, // "OFFLINE", "HUB", "SPOKE", "API"
     pub local_ip: String,
     pub port: u16,
     pub pairing_code: String,
@@ -295,21 +295,87 @@ pub fn pair_spoke_device(
     }
 }
 
-pub fn trigger_sync_now(shared_state: SharedSyncState) -> Result<SyncStatus, String> {
-    let (hub_ip, auth_token, db_path) = {
+pub fn sync_with_api_engine(
+    shared_state: SharedSyncState,
+    server_url: String,
+) -> Result<SyncStatus, String> {
+    let db_path = {
         let st = lock_state(&shared_state);
-        if st.mode != "SPOKE" {
-            return Ok(st.to_status());
-        }
-        let ip = st.hub_ip.clone().ok_or("Hub IP not set")?;
-        let token = st.auth_token.clone().ok_or("Not paired with Hub")?;
-        (ip, token, st.db_path.clone())
+        st.db_path.clone()
     };
 
     let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
     let local_payload = export_sync_data(&conn).map_err(|e| e.to_string())?;
 
-    let url = format!("http://{}:8765/api/sync/import", hub_ip);
+    let clean_url = server_url.trim().trim_end_matches('/');
+    let target_url = format!("{}/api/sync/import", clean_url);
+
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let resp = client
+        .post(&target_url)
+        .json(&local_payload)
+        .send()
+        .map_err(|e| format!("Failed sync request to Sync Engine at {}: {}", target_url, e))?;
+
+    if resp.status().is_success() {
+        let server_payload = resp
+            .json::<SyncPayload>()
+            .map_err(|e| format!("Failed to decode Sync Engine payload: {}", e))?;
+
+        import_sync_data(&conn, &server_payload).map_err(|e| e.to_string())?;
+
+        let mut st = lock_state(&shared_state);
+        st.last_synced_at = Some(Local::now().to_rfc3339());
+        st.is_connected = true;
+        st.error_message = None;
+
+        let _ = save_sync_config(&conn, "API", Some(clean_url), None, None);
+
+        Ok(st.to_status())
+    } else {
+        let mut st = lock_state(&shared_state);
+        st.is_connected = false;
+        st.error_message = Some("Sync failed with Sync Engine".to_string());
+        Err(format!(
+            "Sync Engine returned HTTP status {}",
+            resp.status()
+        ))
+    }
+}
+
+pub fn trigger_sync_now(shared_state: SharedSyncState) -> Result<SyncStatus, String> {
+    let (mode, hub_ip, auth_token, db_path) = {
+        let st = lock_state(&shared_state);
+        (
+            st.mode.clone(),
+            st.hub_ip.clone(),
+            st.auth_token.clone(),
+            st.db_path.clone(),
+        )
+    };
+
+    if mode == "API" {
+        if let Some(url) = hub_ip {
+            return sync_with_api_engine(shared_state, url);
+        }
+    }
+
+    if mode != "SPOKE" {
+        let st = lock_state(&shared_state);
+        return Ok(st.to_status());
+    }
+
+    let ip = hub_ip.ok_or("Hub IP not set")?;
+    let token = auth_token.ok_or("Not paired with Hub")?;
+
+    let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
+    let local_payload = export_sync_data(&conn).map_err(|e| e.to_string())?;
+
+    let url = format!("http://{}:8765/api/sync/import", ip);
     let client = reqwest::blocking::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
         .build()
@@ -317,7 +383,7 @@ pub fn trigger_sync_now(shared_state: SharedSyncState) -> Result<SyncStatus, Str
 
     let resp = client
         .post(&url)
-        .header("Authorization", format!("Bearer {}", auth_token))
+        .header("Authorization", format!("Bearer {}", token))
         .json(&local_payload)
         .send()
         .map_err(|e| format!("Failed sync request to Hub: {}", e))?;

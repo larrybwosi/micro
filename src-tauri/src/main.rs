@@ -38,6 +38,14 @@ fn pair_spoke_cmd(
 }
 
 #[tauri::command]
+fn sync_api_cmd(
+    sync_state: State<SharedSyncState>,
+    server_url: String,
+) -> Result<SyncStatus, String> {
+    sync_with_api_engine(sync_state.inner().clone(), server_url)
+}
+
+#[tauri::command]
 fn trigger_sync_cmd(sync_state: State<SharedSyncState>) -> Result<SyncStatus, String> {
     trigger_sync_now(sync_state.inner().clone())
 }
@@ -346,6 +354,7 @@ fn main() {
             get_sync_status_cmd,
             start_hub_cmd,
             pair_spoke_cmd,
+            sync_api_cmd,
             trigger_sync_cmd,
             get_local_ip_cmd
         ])
