@@ -1,4 +1,4 @@
-import { Borrower, Loan, Transaction } from '../types';
+import { Borrower, Expense, Loan, Transaction } from '../types';
 import { formatCurrency } from './utils';
 
 /**
@@ -316,6 +316,65 @@ export function exportRepaymentsCSV(
 
   const dateStr = new Date().toISOString().split('T')[0];
   downloadCSV(`repayments_collections_${dateStr}.csv`, csvContent);
+}
+
+/**
+ * Export Expenses & Petty Cash Ledger as a structured CSV file.
+ */
+export function exportExpensesCSV(expenses: Expense[], orgName = 'MicroFinance Systems'): void {
+  const headers = [
+    'Expense ID',
+    'Date',
+    'Category',
+    'Description',
+    'Amount',
+    'Payment Method',
+    'Reference / Receipt',
+    'Status',
+    'Created By',
+    'Approved By',
+  ];
+
+  const rows = expenses.map((e) => [
+    e.id ?? '',
+    e.expense_date,
+    e.category,
+    e.description,
+    e.amount,
+    e.payment_method,
+    e.reference || '',
+    e.status,
+    e.created_by || '',
+    e.approved_by || '',
+  ]);
+
+  const totalAmount = expenses.reduce((sum, e) => sum + e.amount, 0);
+
+  const summaryRow = [
+    'SUMMARY TOTALS',
+    `Total Expenses: ${expenses.length}`,
+    '',
+    '',
+    totalAmount,
+    '',
+    '',
+    '',
+    '',
+    '',
+  ];
+
+  const csvContent = generateCSV(headers, rows, {
+    title: 'Expenses & Petty Cash Audit Ledger',
+    orgName,
+    meta: {
+      'Total Expense Count': String(expenses.length),
+      'Total Expenditure': formatCurrency(totalAmount),
+    },
+    summaryRow,
+  });
+
+  const dateStr = new Date().toISOString().split('T')[0];
+  downloadCSV(`expenses_petty_cash_${dateStr}.csv`, csvContent);
 }
 
 /**

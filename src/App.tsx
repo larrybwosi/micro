@@ -5,6 +5,7 @@ import { BorrowerManagement } from './components/BorrowerManagement';
 import { LoanProductsConfigurator } from './components/LoanProductsConfigurator';
 import { LoanManagement } from './components/LoanManagement';
 import { RepaymentsProcessing } from './components/RepaymentsProcessing';
+import { ExpensesPettyCash } from './components/ExpensesPettyCash';
 import { ReportsAudit } from './components/ReportsAudit';
 import { SettingsCustomizations } from './components/SettingsCustomizations';
 import { SyncEngineView } from './components/SyncEngineView';
@@ -100,6 +101,9 @@ export function App() {
             <LoanManagement loans={loans} borrowers={borrowers} products={products} onRefresh={loadData} currentUser={currentUser} />
           )}
           {currentTab === 'repayments' && <RepaymentsProcessing loans={loans} onRefresh={loadData} />}
+          {currentTab === 'expenses' && (
+            <ExpensesPettyCash currentUser={currentUser} platformSettings={platformSettings} />
+          )}
           {currentTab === 'reports' && <ReportsAudit loans={loans} borrowers={borrowers} />}
           {currentTab === 'sync' && <SyncEngineView onSyncComplete={loadData} />}
           {currentTab === 'settings' && (

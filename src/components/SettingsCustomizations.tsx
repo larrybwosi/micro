@@ -16,6 +16,9 @@ export function SettingsCustomizations({ currentUser, onSettingsUpdated }: Setti
     currency_symbol: 'KSh',
     default_annual_interest_rate: 12.0,
     default_origination_fee_percent: 1.5,
+    default_interest_rate_type: 'ANNUAL',
+    loan_approval_threshold: 50000.0,
+    expense_approval_threshold: 10000.0,
     theme: 'light',
   });
   const [users, setUsers] = useState<UserType[]>([]);
@@ -253,6 +256,49 @@ export function SettingsCustomizations({ currentUser, onSettingsUpdated }: Setti
                   value={settings.default_origination_fee_percent}
                   onChange={(e) => setSettings({ ...settings, default_origination_fee_percent: parseFloat(e.target.value) || 0 })}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xs text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white disabled:opacity-60"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase text-slate-600 mb-1 flex items-center gap-1.5">
+                  <Percent size={16} className="text-slate-400" /> Default Rate Type
+                </label>
+                <select
+                  disabled={!isAdmin}
+                  value={settings.default_interest_rate_type}
+                  onChange={(e) => setSettings({ ...settings, default_interest_rate_type: e.target.value as 'ANNUAL' | 'MONTHLY' })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xs text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white disabled:opacity-60 font-semibold"
+                >
+                  <option value="ANNUAL">Annual Rate (Fixed APR)</option>
+                  <option value="MONTHLY">Monthly Rate</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-semibold uppercase text-slate-600 mb-1 flex items-center gap-1.5">
+                  <DollarSign size={16} className="text-slate-400" /> Loan Approval Limit ({settings.currency_symbol})
+                </label>
+                <input
+                  type="number"
+                  disabled={!isAdmin}
+                  value={settings.loan_approval_threshold}
+                  onChange={(e) => setSettings({ ...settings, loan_approval_threshold: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xs text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white disabled:opacity-60 font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase text-slate-600 mb-1 flex items-center gap-1.5">
+                  <DollarSign size={16} className="text-slate-400" /> Expense Approval Limit ({settings.currency_symbol})
+                </label>
+                <input
+                  type="number"
+                  disabled={!isAdmin}
+                  value={settings.expense_approval_threshold}
+                  onChange={(e) => setSettings({ ...settings, expense_approval_threshold: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xs text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white disabled:opacity-60 font-bold"
                 />
               </div>
 

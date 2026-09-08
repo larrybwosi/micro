@@ -215,16 +215,55 @@ fn get_dashboard_stats_cmd(state: State<AppState>) -> Result<DashboardStats, Str
 }
 
 #[tauri::command]
+fn get_expenses_cmd(state: State<AppState>) -> Result<Vec<Expense>, String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    get_all_expenses(&conn).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn create_expense_cmd(state: State<AppState>, expense: Expense) -> Result<i64, String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    create_expense(&conn, expense).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn update_expense_status_cmd(
+    state: State<AppState>,
+    expense_id: i64,
+    status: String,
+    approved_by: Option<String>,
+) -> Result<(), String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    update_expense_status(&conn, expense_id, &status, approved_by.as_deref())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn delete_expense_cmd(state: State<AppState>, id: i64) -> Result<(), String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    delete_expense(&conn, id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_petty_cash_summary_cmd(state: State<AppState>) -> Result<PettyCashSummary, String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    get_petty_cash_summary(&conn).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn calculate_preview_schedule_cmd(
     principal: f64,
-    annual_rate: f64,
+    rate: f64,
+    interest_rate_type: Option<String>,
     term_months: i32,
     interest_method: String,
     start_date: String,
 ) -> Result<Vec<ScheduleItem>, String> {
+    let rate_type = interest_rate_type.unwrap_or_else(|| "ANNUAL".to_string());
     let schedule = calculate_loan_schedule(
         principal,
-        annual_rate,
+        rate,
+        &rate_type,
         term_months,
         &interest_method,
         &start_date,
@@ -298,6 +337,11 @@ fn main() {
             get_loan_transactions_cmd,
             record_repayment_cmd,
             get_dashboard_stats_cmd,
+            get_expenses_cmd,
+            create_expense_cmd,
+            update_expense_status_cmd,
+            delete_expense_cmd,
+            get_petty_cash_summary_cmd,
             calculate_preview_schedule_cmd,
             get_sync_status_cmd,
             start_hub_cmd,
