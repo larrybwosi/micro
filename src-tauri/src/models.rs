@@ -143,9 +143,9 @@ pub struct PlatformSettings {
     pub default_annual_interest_rate: f64,
     pub default_origination_fee_percent: f64,
     pub default_interest_rate_type: String, // ANNUAL, MONTHLY
-    pub loan_approval_threshold: f64,        // Loans above this amount require admin approval or flag
-    pub expense_approval_threshold: f64,     // Expenses above this amount require admin approval
-    pub theme: String,                       // "light", "dark", "system"
+    pub loan_approval_threshold: f64, // Loans above this amount require admin approval or flag
+    pub expense_approval_threshold: f64, // Expenses above this amount require admin approval
+    pub theme: String,                // "light", "dark", "system"
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

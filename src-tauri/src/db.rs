@@ -141,8 +141,14 @@ pub fn init_db(conn: &Connection) -> Result<()> {
     )?;
 
     // Run safe migrations for existing tables missing new columns
-    let _ = conn.execute("ALTER TABLE loan_products ADD COLUMN interest_rate_type TEXT NOT NULL DEFAULT 'ANNUAL'", []);
-    let _ = conn.execute("ALTER TABLE loans ADD COLUMN interest_rate_type TEXT NOT NULL DEFAULT 'ANNUAL'", []);
+    let _ = conn.execute(
+        "ALTER TABLE loan_products ADD COLUMN interest_rate_type TEXT NOT NULL DEFAULT 'ANNUAL'",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE loans ADD COLUMN interest_rate_type TEXT NOT NULL DEFAULT 'ANNUAL'",
+        [],
+    );
 
     seed_default_data(conn)?;
     Ok(())
@@ -303,9 +309,7 @@ pub fn get_platform_settings(conn: &Connection) -> Result<PlatformSettings> {
                 default_origination_fee_percent = v.parse().unwrap_or(1.5)
             }
             "default_interest_rate_type" => default_interest_rate_type = v,
-            "loan_approval_threshold" => {
-                loan_approval_threshold = v.parse().unwrap_or(50000.0)
-            }
+            "loan_approval_threshold" => loan_approval_threshold = v.parse().unwrap_or(50000.0),
             "expense_approval_threshold" => {
                 expense_approval_threshold = v.parse().unwrap_or(10000.0)
             }
