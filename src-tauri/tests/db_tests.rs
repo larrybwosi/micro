@@ -58,6 +58,14 @@ fn test_user_and_settings_db() {
         loan_approval_threshold: 50000.0,
         expense_approval_threshold: 10000.0,
         theme: "dark".to_string(),
+        default_penalty_type: Some("PERCENTAGE".to_string()),
+        default_late_fee_percent: Some(2.0),
+        default_fixed_penalty_fee: Some(0.0),
+        default_penalty_interest_rate: Some(0.0),
+        default_grace_period_days: Some(5),
+        receipt_header_text: Some("Header".to_string()),
+        receipt_footer_text: Some("Footer".to_string()),
+        receipt_logo_url: Some("".to_string()),
     };
     update_platform_settings(&conn, new_settings).unwrap();
     let updated_settings = get_platform_settings(&conn).unwrap();
