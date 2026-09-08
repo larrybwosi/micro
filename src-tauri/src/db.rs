@@ -201,13 +201,22 @@ fn seed_default_data(conn: &Connection) -> Result<()> {
             [],
         )?;
         conn.execute("INSERT INTO platform_settings (key, value) VALUES ('default_penalty_type', 'PERCENTAGE')", [])?;
-        conn.execute("INSERT INTO platform_settings (key, value) VALUES ('default_late_fee_percent', '2.0')", [])?;
+        conn.execute(
+            "INSERT INTO platform_settings (key, value) VALUES ('default_late_fee_percent', '2.0')",
+            [],
+        )?;
         conn.execute("INSERT INTO platform_settings (key, value) VALUES ('default_fixed_penalty_fee', '0.0')", [])?;
         conn.execute("INSERT INTO platform_settings (key, value) VALUES ('default_penalty_interest_rate', '0.0')", [])?;
-        conn.execute("INSERT INTO platform_settings (key, value) VALUES ('default_grace_period_days', '5')", [])?;
+        conn.execute(
+            "INSERT INTO platform_settings (key, value) VALUES ('default_grace_period_days', '5')",
+            [],
+        )?;
         conn.execute("INSERT INTO platform_settings (key, value) VALUES ('receipt_header_text', 'MicroFinance Pro MFI - Official Payment Voucher')", [])?;
         conn.execute("INSERT INTO platform_settings (key, value) VALUES ('receipt_footer_text', 'Thank you for your prompt payment! System Generated Official Electronic Receipt.')", [])?;
-        conn.execute("INSERT INTO platform_settings (key, value) VALUES ('receipt_logo_url', '')", [])?;
+        conn.execute(
+            "INSERT INTO platform_settings (key, value) VALUES ('receipt_logo_url', '')",
+            [],
+        )?;
     }
 
     Ok(())
@@ -326,7 +335,9 @@ pub fn get_platform_settings(conn: &Connection) -> Result<PlatformSettings> {
     let mut default_penalty_interest_rate = 0.0;
     let mut default_grace_period_days = 5;
     let mut receipt_header_text = "MicroFinance Pro MFI - Official Payment Voucher".to_string();
-    let mut receipt_footer_text = "Thank you for your prompt payment! System Generated Official Electronic Receipt.".to_string();
+    let mut receipt_footer_text =
+        "Thank you for your prompt payment! System Generated Official Electronic Receipt."
+            .to_string();
     let mut receipt_logo_url = "".to_string();
 
     for (k, v) in rows.flatten() {
@@ -348,7 +359,9 @@ pub fn get_platform_settings(conn: &Connection) -> Result<PlatformSettings> {
             "default_penalty_type" => default_penalty_type = v,
             "default_late_fee_percent" => default_late_fee_percent = v.parse().unwrap_or(2.0),
             "default_fixed_penalty_fee" => default_fixed_penalty_fee = v.parse().unwrap_or(0.0),
-            "default_penalty_interest_rate" => default_penalty_interest_rate = v.parse().unwrap_or(0.0),
+            "default_penalty_interest_rate" => {
+                default_penalty_interest_rate = v.parse().unwrap_or(0.0)
+            }
             "default_grace_period_days" => default_grace_period_days = v.parse().unwrap_or(5),
             "receipt_header_text" => receipt_header_text = v,
             "receipt_footer_text" => receipt_footer_text = v,
@@ -1276,7 +1289,10 @@ pub fn import_sync_data(conn: &Connection, payload: &SyncPayload) -> Result<()> 
         } else {
             p.interest_rate_type.clone()
         };
-        let penalty_type = p.penalty_type.clone().unwrap_or_else(|| "PERCENTAGE".to_string());
+        let penalty_type = p
+            .penalty_type
+            .clone()
+            .unwrap_or_else(|| "PERCENTAGE".to_string());
         let fixed_fee = p.fixed_penalty_fee.unwrap_or(0.0);
         let penalty_rate = p.penalty_interest_rate.unwrap_or(0.0);
 
