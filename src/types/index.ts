@@ -116,7 +116,7 @@ export interface DashboardStats {
 }
 
 export interface SyncStatus {
-  mode: 'OFFLINE' | 'HUB' | 'SPOKE';
+  mode: 'OFFLINE' | 'HUB' | 'SPOKE' | 'API';
   local_ip: string;
   port: number;
   pairing_code: string;

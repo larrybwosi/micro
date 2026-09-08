@@ -335,6 +335,16 @@ function mockInvokeFallback<T>(command: string, args?: Record<string, unknown>):
           };
           resolve(mockSyncStatus as unknown as T);
           break;
+        case 'sync_api_cmd':
+          mockSyncStatus = {
+            ...mockSyncStatus,
+            mode: 'API',
+            hub_ip: ((args?.serverUrl ?? args?.server_url) as string) || 'http://localhost:3000',
+            is_connected: true,
+            last_synced_at: new Date().toISOString(),
+          };
+          resolve(mockSyncStatus as unknown as T);
+          break;
         case 'trigger_sync_cmd':
           mockSyncStatus = {
             ...mockSyncStatus,
@@ -390,6 +400,7 @@ export const api = {
   startHub: () => invokeTauri<SyncStatus>('start_hub_cmd'),
   pairSpoke: (hub_ip: string, pairing_code: string, device_name: string) =>
     invokeTauri<SyncStatus>('pair_spoke_cmd', { hubIp: hub_ip, pairingCode: pairing_code, deviceName: device_name }),
+  syncApi: (server_url: string) => invokeTauri<SyncStatus>('sync_api_cmd', { serverUrl: server_url }),
   triggerSync: () => invokeTauri<SyncStatus>('trigger_sync_cmd'),
   getLocalIp: () => invokeTauri<string>('get_local_ip_cmd'),
 };
