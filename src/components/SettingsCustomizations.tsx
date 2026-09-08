@@ -20,6 +20,14 @@ export function SettingsCustomizations({ currentUser, onSettingsUpdated }: Setti
     loan_approval_threshold: 50000.0,
     expense_approval_threshold: 10000.0,
     theme: 'light',
+    default_penalty_type: 'PERCENTAGE',
+    default_late_fee_percent: 2.0,
+    default_fixed_penalty_fee: 0.0,
+    default_penalty_interest_rate: 0.0,
+    default_grace_period_days: 5,
+    receipt_header_text: 'MicroFinance Pro MFI - Official Payment Voucher',
+    receipt_footer_text: 'Thank you for your payment! System Generated Official Electronic Receipt.',
+    receipt_logo_url: '',
   });
   const [users, setUsers] = useState<UserType[]>([]);
   const [loading, setLoading] = useState(false);
@@ -272,6 +280,123 @@ export function SettingsCustomizations({ currentUser, onSettingsUpdated }: Setti
                   <option value="ANNUAL">Annual Rate (Fixed APR)</option>
                   <option value="MONTHLY">Monthly Rate</option>
                 </select>
+              </div>
+            </div>
+
+            {/* Default Penalty Configuration Section */}
+            <div className="pt-4 border-t border-slate-200 space-y-4">
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-600" /> Global Default Penalty Rules
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Penalty Calculation Type</label>
+                  <select
+                    disabled={!isAdmin}
+                    value={settings.default_penalty_type || 'PERCENTAGE'}
+                    onChange={(e) => setSettings({ ...settings, default_penalty_type: e.target.value as PlatformSettings['default_penalty_type'] })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xs text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white disabled:opacity-60"
+                  >
+                    <option value="PERCENTAGE">Percentage of Overdue Amount (%)</option>
+                    <option value="FIXED">Fixed Penalty Fee Amount ({settings.currency_symbol})</option>
+                    <option value="DAILY_RATE">Late Interest Rate (% per month/period)</option>
+                    <option value="COMBINED">Combined (Fixed Fee + Percentage)</option>
+                    <option value="NONE">No Late Penalty Fee</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Grace Period (Days)</label>
+                  <input
+                    type="number"
+                    disabled={!isAdmin}
+                    value={settings.default_grace_period_days ?? 5}
+                    onChange={(e) => setSettings({ ...settings, default_grace_period_days: parseInt(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xs text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white disabled:opacity-60"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-50 p-3.5 rounded-xs border border-slate-200">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Late Fee Rate (%)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    disabled={!isAdmin}
+                    value={settings.default_late_fee_percent ?? 2.0}
+                    onChange={(e) => setSettings({ ...settings, default_late_fee_percent: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xs text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Fixed Penalty Fee ({settings.currency_symbol})</label>
+                  <input
+                    type="number"
+                    step="1"
+                    disabled={!isAdmin}
+                    value={settings.default_fixed_penalty_fee ?? 0.0}
+                    onChange={(e) => setSettings({ ...settings, default_fixed_penalty_fee: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xs text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Penalty Interest Rate (%)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    disabled={!isAdmin}
+                    value={settings.default_penalty_interest_rate ?? 0.0}
+                    onChange={(e) => setSettings({ ...settings, default_penalty_interest_rate: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xs text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* PDF Receipt Branding Section */}
+            <div className="pt-4 border-t border-slate-200 space-y-4">
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <Settings className="w-4 h-4 text-indigo-600" /> PDF Receipt Branding & Layout
+              </h3>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Receipt Header Text</label>
+                <input
+                  type="text"
+                  disabled={!isAdmin}
+                  value={settings.receipt_header_text ?? ''}
+                  onChange={(e) => setSettings({ ...settings, receipt_header_text: e.target.value })}
+                  placeholder="e.g. MicroFinance Pro MFI - Official Payment Voucher"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xs text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white disabled:opacity-60"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Receipt Footer Note / Disclaimer</label>
+                <textarea
+                  rows={2}
+                  disabled={!isAdmin}
+                  value={settings.receipt_footer_text ?? ''}
+                  onChange={(e) => setSettings({ ...settings, receipt_footer_text: e.target.value })}
+                  placeholder="e.g. Thank you for your payment! System Generated Official Electronic Receipt."
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xs text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white disabled:opacity-60"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Receipt Logo Image URL (Optional)</label>
+                <input
+                  type="text"
+                  disabled={!isAdmin}
+                  value={settings.receipt_logo_url ?? ''}
+                  onChange={(e) => setSettings({ ...settings, receipt_logo_url: e.target.value })}
+                  placeholder="https://example.com/logo.png or data:image/png;base64,..."
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xs text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white disabled:opacity-60"
+                />
               </div>
             </div>
 

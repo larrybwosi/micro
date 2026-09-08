@@ -26,6 +26,9 @@ export interface LoanProduct {
   payment_frequency: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY';
   origination_fee_percent: number;
   late_fee_percent: number;
+  fixed_penalty_fee?: number;
+  penalty_interest_rate?: number;
+  penalty_type?: 'PERCENTAGE' | 'FIXED' | 'DAILY_RATE' | 'COMBINED' | 'NONE';
   grace_period_days: number;
   created_at?: string;
 }
@@ -127,6 +130,14 @@ export interface PlatformSettings {
   loan_approval_threshold: number;
   expense_approval_threshold: number;
   theme: 'light' | 'dark' | 'system';
+  default_penalty_type?: 'PERCENTAGE' | 'FIXED' | 'DAILY_RATE' | 'COMBINED' | 'NONE';
+  default_late_fee_percent?: number;
+  default_fixed_penalty_fee?: number;
+  default_penalty_interest_rate?: number;
+  default_grace_period_days?: number;
+  receipt_header_text?: string;
+  receipt_footer_text?: string;
+  receipt_logo_url?: string;
 }
 
 export interface DashboardStats {

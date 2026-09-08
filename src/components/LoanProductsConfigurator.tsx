@@ -40,6 +40,9 @@ export const LoanProductsConfigurator: React.FC<LoanProductsConfiguratorProps> =
     payment_frequency: 'MONTHLY',
     origination_fee_percent: 1.5,
     late_fee_percent: 2.0,
+    fixed_penalty_fee: 0.0,
+    penalty_interest_rate: 0.0,
+    penalty_type: 'PERCENTAGE',
     grace_period_days: 5,
   });
 
@@ -69,6 +72,9 @@ export const LoanProductsConfigurator: React.FC<LoanProductsConfiguratorProps> =
       payment_frequency: 'MONTHLY',
       origination_fee_percent: 1.5,
       late_fee_percent: 2.0,
+      fixed_penalty_fee: 0.0,
+      penalty_interest_rate: 0.0,
+      penalty_type: 'PERCENTAGE',
       grace_period_days: 5,
     });
     setIsModalOpen(true);
@@ -201,6 +207,21 @@ export const LoanProductsConfigurator: React.FC<LoanProductsConfiguratorProps> =
                   <span className="text-slate-400">Fees & Grace Period</span>
                   <span className="text-slate-700">
                     Orig: {p.origination_fee_percent}% | Late: {p.late_fee_percent}% ({p.grace_period_days}d grace)
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center text-slate-600">
+                  <span className="text-slate-400">Penalty Rule</span>
+                  <span className="font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-xs text-[11px]">
+                    {p.penalty_type === 'FIXED'
+                      ? `Fixed ${formatCurrency(p.fixed_penalty_fee || 0)}`
+                      : p.penalty_type === 'DAILY_RATE'
+                      ? `Penalty Int: ${p.penalty_interest_rate}%`
+                      : p.penalty_type === 'COMBINED'
+                      ? `${p.late_fee_percent}% + ${formatCurrency(p.fixed_penalty_fee || 0)}`
+                      : p.penalty_type === 'NONE'
+                      ? 'No Late Penalty'
+                      : `${p.late_fee_percent}% Rate`}
                   </span>
                 </div>
               </div>
@@ -395,14 +416,18 @@ export const LoanProductsConfigurator: React.FC<LoanProductsConfiguratorProps> =
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Late Fee (%)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={formData.late_fee_percent}
-                    onChange={(e) => setFormData({ ...formData, late_fee_percent: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  />
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Penalty Calculation Type</label>
+                  <select
+                    value={formData.penalty_type || 'PERCENTAGE'}
+                    onChange={(e) => setFormData({ ...formData, penalty_type: e.target.value as LoanProduct['penalty_type'] })}
+                    className="w-full px-2.5 py-2 text-xs border border-slate-200 rounded-xs bg-white font-semibold"
+                  >
+                    <option value="PERCENTAGE">Percentage (%)</option>
+                    <option value="FIXED">Fixed Amount ($)</option>
+                    <option value="DAILY_RATE">Penalty Rate (%)</option>
+                    <option value="COMBINED">Combined (Fixed + %)</option>
+                    <option value="NONE">No Penalty</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Grace Period (Days)</label>
@@ -411,6 +436,39 @@ export const LoanProductsConfigurator: React.FC<LoanProductsConfiguratorProps> =
                     value={formData.grace_period_days}
                     onChange={(e) => setFormData({ ...formData, grace_period_days: parseInt(e.target.value) || 0 })}
                     className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 bg-amber-50/50 p-3.5 rounded-xs border border-amber-200/80">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Late Fee Rate (%)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={formData.late_fee_percent}
+                    onChange={(e) => setFormData({ ...formData, late_fee_percent: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 bg-white rounded-xs focus:ring-2 focus:ring-blue-500/20 font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Fixed Penalty Fee ($)</label>
+                  <input
+                    type="number"
+                    step="1"
+                    value={formData.fixed_penalty_fee || 0}
+                    onChange={(e) => setFormData({ ...formData, fixed_penalty_fee: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 bg-white rounded-xs focus:ring-2 focus:ring-blue-500/20 font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Penalty Interest Rate (%)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={formData.penalty_interest_rate || 0}
+                    onChange={(e) => setFormData({ ...formData, penalty_interest_rate: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 bg-white rounded-xs focus:ring-2 focus:ring-blue-500/20 font-bold"
                   />
                 </div>
               </div>

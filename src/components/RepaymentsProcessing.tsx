@@ -1,17 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Receipt, 
   DollarSign, 
   Printer, 
   CheckCircle2, 
   History, 
-  FileSpreadsheet
+  FileSpreadsheet,
+  Download
 } from 'lucide-react';
-import { Loan, Transaction } from '../types';
+import { Loan, Transaction, PlatformSettings } from '../types';
 import { api } from '../services/api';
 import { formatCurrency } from '../lib/utils';
 import { exportRepaymentsCSV } from '../lib/exportUtils';
 import { parseApiError } from '../lib/errorUtils';
+import { generateReceiptPDF } from '../lib/pdfGenerator';
 
 interface RepaymentsProcessingProps {
   loans: Loan[];
@@ -31,10 +33,17 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
   const [lastReceipt, setLastReceipt] = useState<Transaction | null>(null);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [settings, setSettings] = useState<PlatformSettings | undefined>(undefined);
 
   const selectedLoan = loans.find((l) => l.id === selectedLoanId);
 
-  const handleSelectLoan = async (loanId: number) => {
+  useEffect(() => {
+    api.getSettings().then((s) => {
+      if (s) setSettings(s);
+    }).catch(console.error);
+  }, []);
+
+  const handleSelectLoan = useCallback(async (loanId: number) => {
     setSelectedLoanId(loanId);
     setLastReceipt(null);
     const selected = loans.find((l) => l.id === loanId);
@@ -47,7 +56,13 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
         console.error(err);
       }
     }
-  };
+  }, [loans]);
+
+  useEffect(() => {
+    if (selectedLoanId) {
+      handleSelectLoan(selectedLoanId);
+    }
+  }, [selectedLoanId, handleSelectLoan]);
 
   const handleRecordRepayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,6 +95,14 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
     window.print();
   };
 
+  const handleDownloadPDF = (tx: Transaction) => {
+    generateReceiptPDF({
+      transaction: tx,
+      loan: selectedLoan,
+      settings,
+    });
+  };
+
   const handleExportRepaymentsCSV = () => {
     exportRepaymentsCSV(recentTransactions, loans);
   };
@@ -90,7 +113,7 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
       <div className="bg-white p-5 rounded-xs border border-slate-200/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-slate-900">Repayment Processing & Receipt Generator</h2>
-          <p className="text-slate-500 text-xs mt-0.5">Collect loan payments, auto-allocate principal & interest, and issue printable receipts</p>
+          <p className="text-slate-500 text-xs mt-0.5">Collect loan payments, auto-allocate principal, interest & penalties, and issue downloadable PDF receipts</p>
         </div>
 
         {recentTransactions.length > 0 && (
@@ -122,12 +145,12 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Select Active Loan</label>
                   <select
                     value={selectedLoanId}
-                    onChange={(e) => handleSelectLoan(parseInt(e.target.value))}
+                    onChange={(e) => setSelectedLoanId(parseInt(e.target.value))}
                     className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xs bg-white focus:ring-2 focus:ring-emerald-500/20 font-semibold"
                   >
                     {activeLoans.map((l) => (
                       <option key={l.id} value={l.id}>
-                        {l.loan_number} — {l.borrower_name} ({formatCurrency(l.balance_remaining || 0)} balance remaining)
+                        {l.loan_number} — {l.borrower_name} ({formatCurrency(l.balance_remaining || 0, settings?.currency_symbol)} balance remaining)
                       </option>
                     ))}
                   </select>
@@ -145,10 +168,10 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
                     </div>
                     <div>
                       <span className="text-slate-500">Total Outstanding Balance:</span>
-                      <p className="font-bold text-indigo-600 text-sm">{formatCurrency(selectedLoan.balance_remaining || 0)}</p>
+                      <p className="font-bold text-indigo-600 text-sm">{formatCurrency(selectedLoan.balance_remaining || 0, settings?.currency_symbol)}</p>
                     </div>
                     <div>
-                      <span className="text-slate-500">Interest Calculation Engine:</span>
+                      <span className="text-slate-500">Interest Engine:</span>
                       <p className="font-semibold text-slate-700">{selectedLoan.interest_method}</p>
                     </div>
                   </div>
@@ -156,7 +179,7 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Repayment Amount ($)</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Repayment Amount ({settings?.currency_symbol || 'KSh'})</label>
                     <input
                       type="number"
                       step="0.01"
@@ -208,7 +231,7 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
                     <label className="block text-xs font-semibold text-slate-700 mb-1">Officer Notes</label>
                     <input
                       type="text"
-                      placeholder="e.g. Early payment received"
+                      placeholder="e.g. Regular payment received"
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
                       className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xs focus:ring-2 focus:ring-emerald-500/20"
@@ -259,10 +282,16 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-bold text-emerald-600 text-sm">{formatCurrency(tx.amount)}</div>
+                      <div className="font-bold text-emerald-600 text-sm">{formatCurrency(tx.amount, settings?.currency_symbol)}</div>
                       <div className="text-[10px] text-slate-400">
-                        P: {formatCurrency(tx.principal_component)} | I: {formatCurrency(tx.interest_component)}
+                        P: {formatCurrency(tx.principal_component, settings?.currency_symbol)} | I: {formatCurrency(tx.interest_component, settings?.currency_symbol)} | Penalty: {formatCurrency(tx.fee_component || 0, settings?.currency_symbol)}
                       </div>
+                      <button
+                        onClick={() => handleDownloadPDF(tx)}
+                        className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-800 transition-colors"
+                      >
+                        <Download className="w-3 h-3" /> Download PDF Receipt
+                      </button>
                     </div>
                   </div>
                 ))
@@ -271,29 +300,37 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
           </div>
         </div>
 
-        {/* Receipt Display & Printable Voucher */}
+        {/* Receipt Display & Downloadable Voucher */}
         <div className="lg:col-span-5">
           <div className="bg-white rounded-xs border border-slate-200/80 p-6 shadow-sm sticky top-6">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
               <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
                 <Receipt className="w-5 h-5 text-blue-600" />
-                Printable Official Receipt
+                Official Receipt & Voucher
               </h3>
               {lastReceipt && (
-                <button
-                  onClick={handlePrintReceipt}
-                  className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold px-3 py-1.5 rounded-xs flex items-center gap-1.5 shadow-sm transition-all"
-                >
-                  <Printer className="w-3.5 h-3.5" /> Print Receipt
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleDownloadPDF(lastReceipt)}
+                    className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-1.5 rounded-xs flex items-center gap-1.5 shadow-sm transition-all"
+                  >
+                    <Download className="w-3.5 h-3.5" /> Download PDF
+                  </button>
+                  <button
+                    onClick={handlePrintReceipt}
+                    className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold px-3 py-1.5 rounded-xs flex items-center gap-1.5 shadow-sm transition-all"
+                  >
+                    <Printer className="w-3.5 h-3.5" /> Print
+                  </button>
+                </div>
               )}
             </div>
 
             {lastReceipt ? (
               <div id="printable-receipt" className="border-2 border-dashed border-slate-300 rounded-xs p-5 bg-slate-50/40 space-y-4 font-mono text-xs">
                 <div className="text-center border-b border-slate-200 pb-3">
-                  <h4 className="font-bold text-base text-slate-900 uppercase">MicroFinance Pro MFI</h4>
-                  <p className="text-[10px] text-slate-500">Official Payment Receipt & Voucher</p>
+                  <h4 className="font-bold text-base text-slate-900 uppercase">{settings?.org_name || 'MicroFinance Pro MFI'}</h4>
+                  <p className="text-[10px] text-slate-500">{settings?.receipt_header_text || 'Official Payment Receipt & Voucher'}</p>
                   <div className="mt-2 inline-block bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-xs text-[10px]">
                     STATUS: PAYMENT SUCCESSFUL
                   </div>
@@ -329,20 +366,24 @@ export const RepaymentsProcessing: React.FC<RepaymentsProcessingProps> = ({ loan
                 <div className="border-t border-b border-slate-200 py-3 space-y-1.5">
                   <div className="flex justify-between font-bold text-slate-900 text-sm">
                     <span>TOTAL RECEIVED:</span>
-                    <span className="text-emerald-600">{formatCurrency(lastReceipt.amount)}</span>
+                    <span className="text-emerald-600">{formatCurrency(lastReceipt.amount, settings?.currency_symbol)}</span>
                   </div>
                   <div className="flex justify-between text-[11px] text-slate-500">
                     <span>Principal Component:</span>
-                    <span>{formatCurrency(lastReceipt.principal_component)}</span>
+                    <span>{formatCurrency(lastReceipt.principal_component, settings?.currency_symbol)}</span>
                   </div>
                   <div className="flex justify-between text-[11px] text-slate-500">
                     <span>Interest Component:</span>
-                    <span>{formatCurrency(lastReceipt.interest_component)}</span>
+                    <span>{formatCurrency(lastReceipt.interest_component, settings?.currency_symbol)}</span>
+                  </div>
+                  <div className="flex justify-between text-[11px] text-slate-500">
+                    <span>Penalty / Late Fee Component:</span>
+                    <span>{formatCurrency(lastReceipt.fee_component || 0, settings?.currency_symbol)}</span>
                   </div>
                 </div>
 
                 <div className="text-[10px] text-slate-400 text-center pt-2">
-                  <p>Thank you for your payment!</p>
+                  <p>{settings?.receipt_footer_text || 'Thank you for your payment!'}</p>
                   <p className="mt-0.5">System Generated Electronic Receipt — Authorized Copy</p>
                 </div>
               </div>
