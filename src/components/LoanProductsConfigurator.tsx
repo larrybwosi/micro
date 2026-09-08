@@ -32,6 +32,7 @@ export const LoanProductsConfigurator: React.FC<LoanProductsConfiguratorProps> =
     description: '',
     interest_method: 'REDUCING_BALANCE',
     annual_interest_rate: 12.0,
+    interest_rate_type: 'ANNUAL',
     min_amount: 500.0,
     max_amount: 10000.0,
     min_term_months: 3,
@@ -60,6 +61,7 @@ export const LoanProductsConfigurator: React.FC<LoanProductsConfiguratorProps> =
       description: '',
       interest_method: 'REDUCING_BALANCE',
       annual_interest_rate: 12.0,
+      interest_rate_type: 'ANNUAL',
       min_amount: 500.0,
       max_amount: 10000.0,
       min_term_months: 3,
@@ -170,9 +172,11 @@ export const LoanProductsConfigurator: React.FC<LoanProductsConfiguratorProps> =
               <div className="space-y-3 border-t border-b border-slate-100 py-4 text-xs font-medium">
                 <div className="flex justify-between items-center text-slate-600">
                   <span className="flex items-center gap-1.5 text-slate-500">
-                    <Percent className="w-3.5 h-3.5 text-slate-400" /> Annual Interest Rate
+                    <Percent className="w-3.5 h-3.5 text-slate-400" /> Interest Rate
                   </span>
-                  <span className="font-bold text-slate-900">{p.annual_interest_rate}% APR</span>
+                  <span className="font-bold text-slate-900">
+                    {p.annual_interest_rate}% {p.interest_rate_type === 'MONTHLY' ? 'per month' : 'p.a. (APR)'}
+                  </span>
                 </div>
 
                 <div className="flex justify-between items-center text-slate-600">
@@ -282,22 +286,34 @@ export const LoanProductsConfigurator: React.FC<LoanProductsConfiguratorProps> =
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xs border border-slate-200/60">
+              <div className="grid grid-cols-3 gap-3 bg-slate-50 p-4 rounded-xs border border-slate-200/60">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Interest Calculation Engine</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Interest Engine</label>
                   <select
                     value={formData.interest_method}
                     onChange={(e) => setFormData({ ...formData, interest_method: e.target.value as LoanProduct['interest_method'] })}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xs bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-semibold"
+                    className="w-full px-2.5 py-2 text-xs border border-slate-200 rounded-xs bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-semibold"
                   >
                     <option value="REDUCING_BALANCE">Reducing Balance (EMI)</option>
                     <option value="FLAT_RATE">Flat Rate (Simple)</option>
-                    <option value="INTEREST_ONLY">Interest-Only Bullet Repayment</option>
+                    <option value="INTEREST_ONLY">Interest-Only Bullet</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Annual Interest Rate (% APR)</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Interest Rate Type</label>
+                  <select
+                    value={formData.interest_rate_type}
+                    onChange={(e) => setFormData({ ...formData, interest_rate_type: e.target.value as 'ANNUAL' | 'MONTHLY' })}
+                    className="w-full px-2.5 py-2 text-xs border border-slate-200 rounded-xs bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-semibold text-blue-700"
+                  >
+                    <option value="ANNUAL">Annual (Fixed APR)</option>
+                    <option value="MONTHLY">Monthly Rate</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Rate ({formData.interest_rate_type === 'MONTHLY' ? '% / Month' : '% APR'})</label>
                   <input
                     type="number"
                     step="0.1"

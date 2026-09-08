@@ -1,6 +1,6 @@
 use crate::models::{
-    Borrower, DashboardStats, Loan, LoanProduct, PlatformSettings, ScheduleItem, SyncPayload,
-    Transaction, User,
+    Borrower, DashboardStats, Expense, Loan, LoanProduct, PettyCashSummary, PlatformSettings,
+    ScheduleItem, SyncPayload, Transaction, User,
 };
 use chrono::{Datelike, Local, NaiveDate};
 use rusqlite::{params, Connection, Result};
@@ -50,6 +50,7 @@ pub fn init_db(conn: &Connection) -> Result<()> {
             description TEXT NOT NULL,
             interest_method TEXT NOT NULL,
             annual_interest_rate REAL NOT NULL,
+            interest_rate_type TEXT NOT NULL DEFAULT 'ANNUAL',
             min_amount REAL NOT NULL,
             max_amount REAL NOT NULL,
             min_term_months INTEGER NOT NULL,
@@ -68,6 +69,7 @@ pub fn init_db(conn: &Connection) -> Result<()> {
             loan_number TEXT NOT NULL UNIQUE,
             principal_amount REAL NOT NULL,
             annual_interest_rate REAL NOT NULL,
+            interest_rate_type TEXT NOT NULL DEFAULT 'ANNUAL',
             interest_method TEXT NOT NULL,
             term_months INTEGER NOT NULL,
             payment_frequency TEXT NOT NULL,
@@ -81,6 +83,20 @@ pub fn init_db(conn: &Connection) -> Result<()> {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (borrower_id) REFERENCES borrowers(id),
             FOREIGN KEY (loan_product_id) REFERENCES loan_products(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS expenses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            category TEXT NOT NULL,
+            description TEXT NOT NULL,
+            amount REAL NOT NULL,
+            expense_date TEXT NOT NULL,
+            payment_method TEXT NOT NULL,
+            reference TEXT,
+            status TEXT NOT NULL DEFAULT 'APPROVED',
+            created_by TEXT,
+            approved_by TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
 
         CREATE TABLE IF NOT EXISTS schedule_items (
@@ -120,8 +136,13 @@ pub fn init_db(conn: &Connection) -> Result<()> {
         CREATE INDEX IF NOT EXISTS idx_loans_product ON loans(loan_product_id);
         CREATE INDEX IF NOT EXISTS idx_schedule_loan ON schedule_items(loan_id);
         CREATE INDEX IF NOT EXISTS idx_transactions_loan ON transactions(loan_id);
+        CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(expense_date);
         ",
     )?;
+
+    // Run safe migrations for existing tables missing new columns
+    let _ = conn.execute("ALTER TABLE loan_products ADD COLUMN interest_rate_type TEXT NOT NULL DEFAULT 'ANNUAL'", []);
+    let _ = conn.execute("ALTER TABLE loans ADD COLUMN interest_rate_type TEXT NOT NULL DEFAULT 'ANNUAL'", []);
 
     seed_default_data(conn)?;
     Ok(())
@@ -151,6 +172,9 @@ fn seed_default_data(conn: &Connection) -> Result<()> {
         )?;
         conn.execute("INSERT INTO platform_settings (key, value) VALUES ('default_annual_interest_rate', '12.0')", [])?;
         conn.execute("INSERT INTO platform_settings (key, value) VALUES ('default_origination_fee_percent', '1.5')", [])?;
+        conn.execute("INSERT INTO platform_settings (key, value) VALUES ('default_interest_rate_type', 'ANNUAL')", [])?;
+        conn.execute("INSERT INTO platform_settings (key, value) VALUES ('loan_approval_threshold', '50000.0')", [])?;
+        conn.execute("INSERT INTO platform_settings (key, value) VALUES ('expense_approval_threshold', '10000.0')", [])?;
         conn.execute(
             "INSERT INTO platform_settings (key, value) VALUES ('theme', 'light')",
             [],
@@ -263,6 +287,9 @@ pub fn get_platform_settings(conn: &Connection) -> Result<PlatformSettings> {
     let mut currency_symbol = "KSh".to_string();
     let mut default_annual_interest_rate = 12.0;
     let mut default_origination_fee_percent = 1.5;
+    let mut default_interest_rate_type = "ANNUAL".to_string();
+    let mut loan_approval_threshold = 50000.0;
+    let mut expense_approval_threshold = 10000.0;
     let mut theme = "light".to_string();
 
     for (k, v) in rows.flatten() {
@@ -275,6 +302,13 @@ pub fn get_platform_settings(conn: &Connection) -> Result<PlatformSettings> {
             "default_origination_fee_percent" => {
                 default_origination_fee_percent = v.parse().unwrap_or(1.5)
             }
+            "default_interest_rate_type" => default_interest_rate_type = v,
+            "loan_approval_threshold" => {
+                loan_approval_threshold = v.parse().unwrap_or(50000.0)
+            }
+            "expense_approval_threshold" => {
+                expense_approval_threshold = v.parse().unwrap_or(10000.0)
+            }
             "theme" => theme = v,
             _ => {}
         }
@@ -285,6 +319,9 @@ pub fn get_platform_settings(conn: &Connection) -> Result<PlatformSettings> {
         currency_symbol,
         default_annual_interest_rate,
         default_origination_fee_percent,
+        default_interest_rate_type,
+        loan_approval_threshold,
+        expense_approval_threshold,
         theme,
     })
 }
@@ -294,6 +331,9 @@ pub fn update_platform_settings(conn: &Connection, settings: PlatformSettings) -
     conn.execute("INSERT INTO platform_settings (key, value) VALUES ('currency_symbol', ?1) ON CONFLICT(key) DO UPDATE SET value=?1", params![settings.currency_symbol])?;
     conn.execute("INSERT INTO platform_settings (key, value) VALUES ('default_annual_interest_rate', ?1) ON CONFLICT(key) DO UPDATE SET value=?1", params![settings.default_annual_interest_rate.to_string()])?;
     conn.execute("INSERT INTO platform_settings (key, value) VALUES ('default_origination_fee_percent', ?1) ON CONFLICT(key) DO UPDATE SET value=?1", params![settings.default_origination_fee_percent.to_string()])?;
+    conn.execute("INSERT INTO platform_settings (key, value) VALUES ('default_interest_rate_type', ?1) ON CONFLICT(key) DO UPDATE SET value=?1", params![settings.default_interest_rate_type])?;
+    conn.execute("INSERT INTO platform_settings (key, value) VALUES ('loan_approval_threshold', ?1) ON CONFLICT(key) DO UPDATE SET value=?1", params![settings.loan_approval_threshold.to_string()])?;
+    conn.execute("INSERT INTO platform_settings (key, value) VALUES ('expense_approval_threshold', ?1) ON CONFLICT(key) DO UPDATE SET value=?1", params![settings.expense_approval_threshold.to_string()])?;
     conn.execute("INSERT INTO platform_settings (key, value) VALUES ('theme', ?1) ON CONFLICT(key) DO UPDATE SET value=?1", params![settings.theme])?;
     Ok(())
 }
@@ -422,7 +462,7 @@ pub fn delete_borrower(conn: &Connection, id: i64) -> Result<()> {
 
 // Loan Product Queries
 pub fn get_all_loan_products(conn: &Connection) -> Result<Vec<LoanProduct>> {
-    let mut stmt = conn.prepare("SELECT id, name, code, description, interest_method, annual_interest_rate, min_amount, max_amount, min_term_months, max_term_months, payment_frequency, origination_fee_percent, late_fee_percent, grace_period_days, created_at FROM loan_products ORDER BY id DESC")?;
+    let mut stmt = conn.prepare("SELECT id, name, code, description, interest_method, annual_interest_rate, interest_rate_type, min_amount, max_amount, min_term_months, max_term_months, payment_frequency, origination_fee_percent, late_fee_percent, grace_period_days, created_at FROM loan_products ORDER BY id DESC")?;
     let product_iter = stmt.query_map([], |row| {
         Ok(LoanProduct {
             id: Some(row.get(0)?),
@@ -431,15 +471,16 @@ pub fn get_all_loan_products(conn: &Connection) -> Result<Vec<LoanProduct>> {
             description: row.get(3)?,
             interest_method: row.get(4)?,
             annual_interest_rate: row.get(5)?,
-            min_amount: row.get(6)?,
-            max_amount: row.get(7)?,
-            min_term_months: row.get(8)?,
-            max_term_months: row.get(9)?,
-            payment_frequency: row.get(10)?,
-            origination_fee_percent: row.get(11)?,
-            late_fee_percent: row.get(12)?,
-            grace_period_days: row.get(13)?,
-            created_at: row.get(14)?,
+            interest_rate_type: row.get(6)?,
+            min_amount: row.get(7)?,
+            max_amount: row.get(8)?,
+            min_term_months: row.get(9)?,
+            max_term_months: row.get(10)?,
+            payment_frequency: row.get(11)?,
+            origination_fee_percent: row.get(12)?,
+            late_fee_percent: row.get(13)?,
+            grace_period_days: row.get(14)?,
+            created_at: row.get(15)?,
         })
     })?;
 
@@ -451,12 +492,17 @@ pub fn get_all_loan_products(conn: &Connection) -> Result<Vec<LoanProduct>> {
 }
 
 pub fn create_loan_product(conn: &Connection, p: LoanProduct) -> Result<i64> {
+    let rate_type = if p.interest_rate_type.trim().is_empty() {
+        "ANNUAL".to_string()
+    } else {
+        p.interest_rate_type.clone()
+    };
     conn.execute(
-        "INSERT INTO loan_products (name, code, description, interest_method, annual_interest_rate, min_amount, max_amount, min_term_months, max_term_months, payment_frequency, origination_fee_percent, late_fee_percent, grace_period_days)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+        "INSERT INTO loan_products (name, code, description, interest_method, annual_interest_rate, interest_rate_type, min_amount, max_amount, min_term_months, max_term_months, payment_frequency, origination_fee_percent, late_fee_percent, grace_period_days)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
         params![
             p.name, p.code, p.description, p.interest_method, p.annual_interest_rate,
-            p.min_amount, p.max_amount, p.min_term_months, p.max_term_months,
+            rate_type, p.min_amount, p.max_amount, p.min_term_months, p.max_term_months,
             p.payment_frequency, p.origination_fee_percent, p.late_fee_percent, p.grace_period_days
         ],
     )?;
@@ -464,11 +510,16 @@ pub fn create_loan_product(conn: &Connection, p: LoanProduct) -> Result<i64> {
 }
 
 pub fn update_loan_product(conn: &Connection, p: LoanProduct) -> Result<()> {
+    let rate_type = if p.interest_rate_type.trim().is_empty() {
+        "ANNUAL".to_string()
+    } else {
+        p.interest_rate_type.clone()
+    };
     conn.execute(
-        "UPDATE loan_products SET name=?1, code=?2, description=?3, interest_method=?4, annual_interest_rate=?5, min_amount=?6, max_amount=?7, min_term_months=?8, max_term_months=?9, payment_frequency=?10, origination_fee_percent=?11, late_fee_percent=?12, grace_period_days=?13 WHERE id=?14",
+        "UPDATE loan_products SET name=?1, code=?2, description=?3, interest_method=?4, annual_interest_rate=?5, interest_rate_type=?6, min_amount=?7, max_amount=?8, min_term_months=?9, max_term_months=?10, payment_frequency=?11, origination_fee_percent=?12, late_fee_percent=?13, grace_period_days=?14 WHERE id=?15",
         params![
             p.name, p.code, p.description, p.interest_method, p.annual_interest_rate,
-            p.min_amount, p.max_amount, p.min_term_months, p.max_term_months,
+            rate_type, p.min_amount, p.max_amount, p.min_term_months, p.max_term_months,
             p.payment_frequency, p.origination_fee_percent, p.late_fee_percent, p.grace_period_days, p.id
         ],
     )?;
@@ -483,7 +534,8 @@ pub fn delete_loan_product(conn: &Connection, id: i64) -> Result<()> {
 // Financial Calculation & Loan Management
 pub fn calculate_loan_schedule(
     principal: f64,
-    annual_rate: f64,
+    rate: f64,
+    interest_rate_type: &str,
     term_months: i32,
     interest_method: &str,
     start_date: &str,
@@ -496,10 +548,17 @@ pub fn calculate_loan_schedule(
 
     let base_date = NaiveDate::parse_from_str(start_date, "%Y-%m-%d")
         .unwrap_or_else(|_| Local::now().date_naive());
-    let safe_rate = annual_rate.max(0.0);
+    let safe_rate = rate.max(0.0);
+
+    // Convert monthly rate vs annual rate to monthly fractional rate r
+    let r = if interest_rate_type == "MONTHLY" {
+        safe_rate / 100.0
+    } else {
+        (safe_rate / 100.0) / 12.0
+    };
 
     if interest_method == "FLAT_RATE" {
-        let total_interest = principal * (safe_rate / 100.0) * (term_months as f64 / 12.0);
+        let total_interest = principal * r * term_months as f64;
         let principal_per_month = principal / term_months as f64;
         let interest_per_month = total_interest / term_months as f64;
         let total_per_month = principal_per_month + interest_per_month;
@@ -517,7 +576,6 @@ pub fn calculate_loan_schedule(
             ));
         }
     } else if interest_method == "REDUCING_BALANCE" {
-        let r = (safe_rate / 100.0) / 12.0;
         let n = term_months as f64;
         let emi = if r > 0.0 {
             let factor = (1.0 + r).powf(n);
@@ -552,7 +610,7 @@ pub fn calculate_loan_schedule(
             ));
         }
     } else if interest_method == "INTEREST_ONLY" {
-        let interest_per_month = principal * (safe_rate / 100.0) / 12.0;
+        let interest_per_month = principal * r;
 
         for i in 1..=term_months {
             let principal_due = if i == term_months { principal } else { 0.0 };
@@ -587,7 +645,7 @@ pub fn get_all_loans(conn: &Connection, status_filter: Option<String>) -> Result
     let query = "
         SELECT 
             l.id, l.borrower_id, l.loan_product_id, l.loan_number, l.principal_amount,
-            l.annual_interest_rate, l.interest_method, l.term_months, l.payment_frequency,
+            l.annual_interest_rate, l.interest_rate_type, l.interest_method, l.term_months, l.payment_frequency,
             l.origination_fee, l.status, l.application_date, l.approval_date,
             l.disbursement_date, l.maturity_date, l.notes, l.created_at,
             (b.first_name || ' ' || b.last_name) as borrower_name,
@@ -606,8 +664,8 @@ pub fn get_all_loans(conn: &Connection, status_filter: Option<String>) -> Result
 
     let mut stmt = conn.prepare(query)?;
     let loan_iter = stmt.query_map(params![status_filter], |row| {
-        let total_payable: f64 = row.get(20)?;
-        let amount_paid: f64 = row.get(21)?;
+        let total_payable: f64 = row.get(21)?;
+        let amount_paid: f64 = row.get(22)?;
         let balance_remaining = (total_payable - amount_paid).max(0.0);
 
         Ok(Loan {
@@ -617,20 +675,21 @@ pub fn get_all_loans(conn: &Connection, status_filter: Option<String>) -> Result
             loan_number: row.get(3)?,
             principal_amount: row.get(4)?,
             annual_interest_rate: row.get(5)?,
-            interest_method: row.get(6)?,
-            term_months: row.get(7)?,
-            payment_frequency: row.get(8)?,
-            origination_fee: row.get(9)?,
-            status: row.get(10)?,
-            application_date: row.get(11)?,
-            approval_date: row.get(12)?,
-            disbursement_date: row.get(13)?,
-            maturity_date: row.get(14)?,
-            notes: row.get(15)?,
-            created_at: row.get(16)?,
-            borrower_name: Some(row.get(17)?),
-            product_name: Some(row.get(18)?),
-            total_interest: Some(row.get(19)?),
+            interest_rate_type: row.get(6)?,
+            interest_method: row.get(7)?,
+            term_months: row.get(8)?,
+            payment_frequency: row.get(9)?,
+            origination_fee: row.get(10)?,
+            status: row.get(11)?,
+            application_date: row.get(12)?,
+            approval_date: row.get(13)?,
+            disbursement_date: row.get(14)?,
+            maturity_date: row.get(15)?,
+            notes: row.get(16)?,
+            created_at: row.get(17)?,
+            borrower_name: Some(row.get(18)?),
+            product_name: Some(row.get(19)?),
+            total_interest: Some(row.get(20)?),
             total_payable: Some(total_payable),
             amount_paid: Some(amount_paid),
             balance_remaining: Some(balance_remaining),
@@ -656,14 +715,20 @@ pub fn create_loan(conn: &Connection, loan: Loan) -> Result<i64> {
     };
     let application_date = Local::now().format("%Y-%m-%d").to_string();
 
+    let rate_type = if loan.interest_rate_type.trim().is_empty() {
+        "ANNUAL".to_string()
+    } else {
+        loan.interest_rate_type.clone()
+    };
+
     let tx = conn.unchecked_transaction()?;
 
     tx.execute(
-        "INSERT INTO loans (borrower_id, loan_product_id, loan_number, principal_amount, annual_interest_rate, interest_method, term_months, payment_frequency, origination_fee, status, application_date, notes)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 'PENDING_APPROVAL', ?10, ?11)",
+        "INSERT INTO loans (borrower_id, loan_product_id, loan_number, principal_amount, annual_interest_rate, interest_rate_type, interest_method, term_months, payment_frequency, origination_fee, status, application_date, notes)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 'PENDING_APPROVAL', ?11, ?12)",
         params![
             loan.borrower_id, loan.loan_product_id, loan_number, loan.principal_amount,
-            loan.annual_interest_rate, loan.interest_method, loan.term_months,
+            loan.annual_interest_rate, rate_type, loan.interest_method, loan.term_months,
             loan.payment_frequency, loan.origination_fee, application_date, loan.notes
         ],
     )?;
@@ -674,6 +739,7 @@ pub fn create_loan(conn: &Connection, loan: Loan) -> Result<i64> {
     let schedule = calculate_loan_schedule(
         loan.principal_amount,
         loan.annual_interest_rate,
+        &rate_type,
         loan.term_months,
         &loan.interest_method,
         &application_date,
@@ -900,6 +966,109 @@ pub fn record_repayment(
     })
 }
 
+// Expense Queries
+pub fn get_all_expenses(conn: &Connection) -> Result<Vec<Expense>> {
+    let mut stmt = conn.prepare("SELECT id, category, description, amount, expense_date, payment_method, reference, status, created_by, approved_by, created_at FROM expenses ORDER BY expense_date DESC, id DESC")?;
+    let expense_iter = stmt.query_map([], |row| {
+        Ok(Expense {
+            id: Some(row.get(0)?),
+            category: row.get(1)?,
+            description: row.get(2)?,
+            amount: row.get(3)?,
+            expense_date: row.get(4)?,
+            payment_method: row.get(5)?,
+            reference: row.get(6)?,
+            status: row.get(7)?,
+            created_by: row.get(8)?,
+            approved_by: row.get(9)?,
+            created_at: row.get(10)?,
+        })
+    })?;
+
+    let mut list = Vec::new();
+    for e in expense_iter {
+        list.push(e?);
+    }
+    Ok(list)
+}
+
+pub fn create_expense(conn: &Connection, exp: Expense) -> Result<i64> {
+    let settings = get_platform_settings(conn)?;
+    let exp_date = if exp.expense_date.trim().is_empty() {
+        Local::now().format("%Y-%m-%d").to_string()
+    } else {
+        exp.expense_date.clone()
+    };
+
+    // If expense amount exceeds expense_approval_threshold, mark status as PENDING_APPROVAL unless already approved/specified
+    let initial_status = if exp.status.trim().is_empty() {
+        if exp.amount > settings.expense_approval_threshold {
+            "PENDING_APPROVAL".to_string()
+        } else {
+            "APPROVED".to_string()
+        }
+    } else {
+        exp.status.clone()
+    };
+
+    conn.execute(
+        "INSERT INTO expenses (category, description, amount, expense_date, payment_method, reference, status, created_by, approved_by)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        params![
+            exp.category,
+            exp.description,
+            exp.amount,
+            exp_date,
+            exp.payment_method,
+            exp.reference,
+            initial_status,
+            exp.created_by,
+            exp.approved_by
+        ],
+    )?;
+    Ok(conn.last_insert_rowid())
+}
+
+pub fn update_expense_status(
+    conn: &Connection,
+    expense_id: i64,
+    status: &str,
+    approved_by: Option<&str>,
+) -> Result<()> {
+    conn.execute(
+        "UPDATE expenses SET status = ?1, approved_by = COALESCE(?2, approved_by) WHERE id = ?3",
+        params![status, approved_by, expense_id],
+    )?;
+    Ok(())
+}
+
+pub fn delete_expense(conn: &Connection, id: i64) -> Result<()> {
+    conn.execute("DELETE FROM expenses WHERE id = ?1", params![id])?;
+    Ok(())
+}
+
+pub fn get_petty_cash_summary(conn: &Connection) -> Result<PettyCashSummary> {
+    let total_topup: f64 = conn.query_row(
+        "SELECT COALESCE(SUM(amount), 0.0) FROM expenses WHERE category = 'PETTY_CASH_TOPUP' AND status = 'APPROVED'",
+        [],
+        |row| row.get(0),
+    )?;
+
+    let total_cash_spent: f64 = conn.query_row(
+        "SELECT COALESCE(SUM(amount), 0.0) FROM expenses WHERE category != 'PETTY_CASH_TOPUP' AND payment_method = 'CASH' AND status = 'APPROVED'",
+        [],
+        |row| row.get(0),
+    )?;
+
+    let current_balance = (total_topup - total_cash_spent).max(0.0);
+
+    Ok(PettyCashSummary {
+        total_topup,
+        total_cash_spent,
+        current_balance,
+    })
+}
+
 pub fn get_dashboard_stats(conn: &Connection) -> Result<DashboardStats> {
     let total_borrowers: i64 =
         conn.query_row("SELECT COUNT(*) FROM borrowers", [], |row| row.get(0))?;
@@ -952,6 +1121,7 @@ pub fn export_sync_data(conn: &Connection) -> Result<SyncPayload> {
     let borrowers = get_all_borrowers(conn)?;
     let loan_products = get_all_loan_products(conn)?;
     let loans = get_all_loans(conn, None)?;
+    let expenses = get_all_expenses(conn)?;
 
     let mut schedule_items = Vec::new();
     let mut transactions = Vec::new();
@@ -976,6 +1146,7 @@ pub fn export_sync_data(conn: &Connection) -> Result<SyncPayload> {
         loans,
         schedule_items,
         transactions,
+        expenses,
     })
 }
 
@@ -1011,13 +1182,18 @@ pub fn import_sync_data(conn: &Connection, payload: &SyncPayload) -> Result<()> 
 
     // Upsert Loan Products by code
     for p in &payload.loan_products {
+        let rate_type = if p.interest_rate_type.trim().is_empty() {
+            "ANNUAL".to_string()
+        } else {
+            p.interest_rate_type.clone()
+        };
         tx.execute(
-            "INSERT INTO loan_products (name, code, description, interest_method, annual_interest_rate, min_amount, max_amount, min_term_months, max_term_months, payment_frequency, origination_fee_percent, late_fee_percent, grace_period_days)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
-             ON CONFLICT(code) DO UPDATE SET name=?1, description=?3, interest_method=?4, annual_interest_rate=?5, min_amount=?6, max_amount=?7, min_term_months=?8, max_term_months=?9, payment_frequency=?10, origination_fee_percent=?11, late_fee_percent=?12, grace_period_days=?13",
+            "INSERT INTO loan_products (name, code, description, interest_method, annual_interest_rate, interest_rate_type, min_amount, max_amount, min_term_months, max_term_months, payment_frequency, origination_fee_percent, late_fee_percent, grace_period_days)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+             ON CONFLICT(code) DO UPDATE SET name=?1, description=?3, interest_method=?4, annual_interest_rate=?5, interest_rate_type=?6, min_amount=?7, max_amount=?8, min_term_months=?9, max_term_months=?10, payment_frequency=?11, origination_fee_percent=?12, late_fee_percent=?13, grace_period_days=?14",
             params![
                 p.name, p.code, p.description, p.interest_method, p.annual_interest_rate,
-                p.min_amount, p.max_amount, p.min_term_months, p.max_term_months,
+                rate_type, p.min_amount, p.max_amount, p.min_term_months, p.max_term_months,
                 p.payment_frequency, p.origination_fee_percent, p.late_fee_percent, p.grace_period_days
             ],
         )?;
@@ -1041,14 +1217,20 @@ pub fn import_sync_data(conn: &Connection, payload: &SyncPayload) -> Result<()> 
             )
             .ok();
 
+        let rate_type = if l.interest_rate_type.trim().is_empty() {
+            "ANNUAL".to_string()
+        } else {
+            l.interest_rate_type.clone()
+        };
+
         if let (Some(borrower_id), Some(loan_product_id)) = (b_id, p_id) {
             tx.execute(
-                "INSERT INTO loans (borrower_id, loan_product_id, loan_number, principal_amount, annual_interest_rate, interest_method, term_months, payment_frequency, origination_fee, status, application_date, approval_date, disbursement_date, maturity_date, notes)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
-                 ON CONFLICT(loan_number) DO UPDATE SET status=?10, approval_date=?12, disbursement_date=?13, maturity_date=?14, notes=?15",
+                "INSERT INTO loans (borrower_id, loan_product_id, loan_number, principal_amount, annual_interest_rate, interest_rate_type, interest_method, term_months, payment_frequency, origination_fee, status, application_date, approval_date, disbursement_date, maturity_date, notes)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
+                 ON CONFLICT(loan_number) DO UPDATE SET status=?11, approval_date=?13, disbursement_date=?14, maturity_date=?15, notes=?16",
                 params![
                     borrower_id, loan_product_id, l.loan_number, l.principal_amount,
-                    l.annual_interest_rate, l.interest_method, l.term_months,
+                    l.annual_interest_rate, rate_type, l.interest_method, l.term_months,
                     l.payment_frequency, l.origination_fee, l.status, l.application_date,
                     l.approval_date, l.disbursement_date, l.maturity_date, l.notes
                 ],
@@ -1091,6 +1273,21 @@ pub fn import_sync_data(conn: &Connection, payload: &SyncPayload) -> Result<()> 
                     )?;
                 }
             }
+        }
+    }
+
+    // Upsert Expenses
+    for e in &payload.expenses {
+        if let Some(eid) = e.id {
+            tx.execute(
+                "INSERT INTO expenses (id, category, description, amount, expense_date, payment_method, reference, status, created_by, approved_by)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+                 ON CONFLICT(id) DO UPDATE SET status=?8, approved_by=?10",
+                params![
+                    eid, e.category, e.description, e.amount, e.expense_date,
+                    e.payment_method, e.reference, e.status, e.created_by, e.approved_by
+                ],
+            )?;
         }
     }
 

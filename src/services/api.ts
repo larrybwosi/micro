@@ -1,9 +1,10 @@
-import { Borrower, LoanProduct, Loan, ScheduleItem, Transaction, DashboardStats, User, PlatformSettings, SyncStatus } from '../types';
+import { Borrower, LoanProduct, Loan, ScheduleItem, Transaction, DashboardStats, User, PlatformSettings, SyncStatus, Expense, PettyCashSummary } from '../types';
 
 // Clean state for web preview & testing fallback
 let mockBorrowers: Borrower[] = [];
 let mockLoanProducts: LoanProduct[] = [];
 let mockLoans: Loan[] = [];
+let mockExpenses: Expense[] = [];
 let mockUsers: User[] = [
   {
     id: 1,
@@ -19,6 +20,9 @@ let mockSettings: PlatformSettings = {
   currency_symbol: 'KSh',
   default_annual_interest_rate: 12.0,
   default_origination_fee_percent: 1.5,
+  default_interest_rate_type: 'ANNUAL',
+  loan_approval_threshold: 50000.0,
+  expense_approval_threshold: 10000.0,
   theme: 'light',
 };
 let mockSyncStatus: SyncStatus = {
@@ -94,7 +98,12 @@ function mockInvokeFallback<T>(command: string, args?: Record<string, unknown>):
             reject(new Error('UNIQUE constraint failed: loan_products.code'));
             return;
           }
-          const newP = { ...p, id: mockLoanProducts.length + 1, created_at: new Date().toISOString() };
+          const newP = {
+            ...p,
+            interest_rate_type: p.interest_rate_type || 'ANNUAL',
+            id: mockLoanProducts.length + 1,
+            created_at: new Date().toISOString()
+          };
           mockLoanProducts.unshift(newP);
           resolve(newP.id as unknown as T);
           break;
@@ -137,17 +146,23 @@ function mockInvokeFallback<T>(command: string, args?: Record<string, unknown>):
           const borrower = mockBorrowers.find((b) => b.id === loanData.borrower_id);
           const product = mockLoanProducts.find((p) => p.id === loanData.loan_product_id);
           const newId = mockLoans.length + 1;
+
+          const rateFactor = loanData.interest_rate_type === 'MONTHLY' ? (loanData.annual_interest_rate / 100) * loanData.term_months : (loanData.annual_interest_rate / 100) * (loanData.term_months / 12);
+          const totalInt = loanData.principal_amount * rateFactor;
+          const totalPay = loanData.principal_amount + totalInt;
+
           const newLoan: Loan = {
             ...loanData,
             id: newId,
             loan_number: loanNum,
+            interest_rate_type: loanData.interest_rate_type || 'ANNUAL',
             status: 'PENDING_APPROVAL',
             borrower_name: borrower ? `${borrower.first_name} ${borrower.last_name}` : 'Unknown',
             product_name: product ? product.name : 'Unknown',
-            total_interest: loanData.principal_amount * (loanData.annual_interest_rate / 100),
-            total_payable: loanData.principal_amount * (1 + loanData.annual_interest_rate / 100),
+            total_interest: totalInt,
+            total_payable: totalPay,
             amount_paid: 0,
-            balance_remaining: loanData.principal_amount * (1 + loanData.annual_interest_rate / 100),
+            balance_remaining: totalPay,
           };
           mockLoans.unshift(newLoan);
           resolve(newId as unknown as T);
@@ -263,6 +278,58 @@ function mockInvokeFallback<T>(command: string, args?: Record<string, unknown>):
           resolve(undefined as unknown as T);
           break;
         }
+        case 'get_expenses_cmd':
+          resolve(mockExpenses as unknown as T);
+          break;
+        case 'create_expense_cmd': {
+          const exp = args?.expense as Expense;
+          const newId = mockExpenses.length + 1;
+          const initialStatus = exp.status || (exp.amount > mockSettings.expense_approval_threshold ? 'PENDING_APPROVAL' : 'APPROVED');
+          const newExp: Expense = {
+            ...exp,
+            id: newId,
+            status: initialStatus,
+            created_at: new Date().toISOString(),
+          };
+          mockExpenses.unshift(newExp);
+          resolve(newId as unknown as T);
+          break;
+        }
+        case 'update_expense_status_cmd': {
+          const expenseId = (args?.expenseId ?? args?.expense_id) as number;
+          const status = args?.status as Expense['status'];
+          const approvedBy = (args?.approvedBy ?? args?.approved_by) as string | undefined;
+          mockExpenses = mockExpenses.map((e) => {
+            if (e.id === expenseId) {
+              return { ...e, status, approved_by: approvedBy || e.approved_by };
+            }
+            return e;
+          });
+          resolve(undefined as unknown as T);
+          break;
+        }
+        case 'delete_expense_cmd': {
+          const id = args?.id as number;
+          mockExpenses = mockExpenses.filter((e) => e.id !== id);
+          resolve(undefined as unknown as T);
+          break;
+        }
+        case 'get_petty_cash_summary_cmd': {
+          const total_topup = mockExpenses
+            .filter((e) => e.category === 'PETTY_CASH_TOPUP' && e.status === 'APPROVED')
+            .reduce((sum, e) => sum + e.amount, 0);
+          const total_cash_spent = mockExpenses
+            .filter((e) => e.category !== 'PETTY_CASH_TOPUP' && e.payment_method === 'CASH' && e.status === 'APPROVED')
+            .reduce((sum, e) => sum + e.amount, 0);
+          const current_balance = Math.max(0, total_topup - total_cash_spent);
+          const summary: PettyCashSummary = {
+            total_topup,
+            total_cash_spent,
+            current_balance,
+          };
+          resolve(summary as unknown as T);
+          break;
+        }
         case 'get_dashboard_stats_cmd': {
           const stats: DashboardStats = {
             total_borrowers: mockBorrowers.length,
@@ -280,6 +347,7 @@ function mockInvokeFallback<T>(command: string, args?: Record<string, unknown>):
         case 'calculate_preview_schedule_cmd': {
           const principal = Math.max(0, (args?.principal as number) || 0);
           const rate = Math.max(0, ((args?.annualRate ?? args?.annual_rate) as number) || 0);
+          const rateType = ((args?.interestRateType ?? args?.interest_rate_type) as string) || 'ANNUAL';
           const term = Math.max(0, ((args?.termMonths ?? args?.term_months) as number) || 0);
           const method = ((args?.interestMethod ?? args?.interest_method) as string) || 'FLAT_RATE';
           const items: ScheduleItem[] = [];
@@ -289,8 +357,9 @@ function mockInvokeFallback<T>(command: string, args?: Record<string, unknown>):
             break;
           }
 
+          const r = rateType === 'MONTHLY' ? rate / 100 : (rate / 100) / 12;
           const monthlyPrincipal = principal / term;
-          const monthlyInterest = (principal * (rate / 100)) / 12;
+          const monthlyInterest = principal * r;
 
           for (let i = 1; i <= term; i++) {
             const pDue = method === 'INTEREST_ONLY' ? (i === term ? principal : 0) : monthlyPrincipal;
@@ -382,9 +451,16 @@ export const api = {
   recordRepayment: (loan_id: number, amount: number, payment_method: string, reference: string, notes: string, payment_date?: string) =>
     invokeTauri<Transaction>('record_repayment_cmd', { loanId: loan_id, amount, paymentMethod: payment_method, reference, notes, paymentDate: payment_date }),
 
+  getExpenses: () => invokeTauri<Expense[]>('get_expenses_cmd'),
+  createExpense: (expense: Expense) => invokeTauri<number>('create_expense_cmd', { expense }),
+  updateExpenseStatus: (expense_id: number, status: string, approved_by?: string) =>
+    invokeTauri<void>('update_expense_status_cmd', { expenseId: expense_id, status, approvedBy: approved_by }),
+  deleteExpense: (id: number) => invokeTauri<void>('delete_expense_cmd', { id }),
+  getPettyCashSummary: () => invokeTauri<PettyCashSummary>('get_petty_cash_summary_cmd'),
+
   getDashboardStats: () => invokeTauri<DashboardStats>('get_dashboard_stats_cmd'),
-  calculatePreviewSchedule: (principal: number, annual_rate: number, term_months: number, interest_method: string, start_date: string) =>
-    invokeTauri<ScheduleItem[]>('calculate_preview_schedule_cmd', { principal, annualRate: annual_rate, termMonths: term_months, interestMethod: interest_method, startDate: start_date }),
+  calculatePreviewSchedule: (principal: number, rate: number, interest_rate_type: string, term_months: number, interest_method: string, start_date: string) =>
+    invokeTauri<ScheduleItem[]>('calculate_preview_schedule_cmd', { principal, rate, interestRateType: interest_rate_type, termMonths: term_months, interestMethod: interest_method, startDate: start_date }),
 
   getSyncStatus: () => invokeTauri<SyncStatus>('get_sync_status_cmd'),
   startHub: () => invokeTauri<SyncStatus>('start_hub_cmd'),

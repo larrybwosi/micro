@@ -18,6 +18,7 @@ export interface LoanProduct {
   description: string;
   interest_method: 'FLAT_RATE' | 'REDUCING_BALANCE' | 'INTEREST_ONLY';
   annual_interest_rate: number;
+  interest_rate_type: 'ANNUAL' | 'MONTHLY';
   min_amount: number;
   max_amount: number;
   min_term_months: number;
@@ -36,6 +37,7 @@ export interface Loan {
   loan_number: string;
   principal_amount: number;
   annual_interest_rate: number;
+  interest_rate_type: 'ANNUAL' | 'MONTHLY';
   interest_method: 'FLAT_RATE' | 'REDUCING_BALANCE' | 'INTEREST_ONLY';
   term_months: number;
   payment_frequency: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY';
@@ -53,6 +55,26 @@ export interface Loan {
   total_payable?: number;
   amount_paid?: number;
   balance_remaining?: number;
+}
+
+export interface Expense {
+  id?: number;
+  category: 'OFFICE_SUPPLIES' | 'RENT' | 'UTILITIES' | 'SALARIES' | 'TRAVEL' | 'PETTY_CASH_TOPUP' | 'MISC';
+  description: string;
+  amount: number;
+  expense_date: string;
+  payment_method: 'CASH' | 'BANK_TRANSFER' | 'MOBILE_MONEY' | 'CHECK';
+  reference?: string;
+  status: 'APPROVED' | 'PENDING_APPROVAL' | 'REJECTED';
+  created_by?: string;
+  approved_by?: string;
+  created_at?: string;
+}
+
+export interface PettyCashSummary {
+  total_topup: number;
+  total_cash_spent: number;
+  current_balance: number;
 }
 
 export interface ScheduleItem {
@@ -101,6 +123,9 @@ export interface PlatformSettings {
   currency_symbol: string;
   default_annual_interest_rate: number;
   default_origination_fee_percent: number;
+  default_interest_rate_type: 'ANNUAL' | 'MONTHLY';
+  loan_approval_threshold: number;
+  expense_approval_threshold: number;
   theme: 'light' | 'dark' | 'system';
 }
 

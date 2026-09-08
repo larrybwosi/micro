@@ -22,6 +22,8 @@ pub struct LoanProduct {
     pub description: String,
     pub interest_method: String, // FLAT_RATE, REDUCING_BALANCE, INTEREST_ONLY
     pub annual_interest_rate: f64,
+    #[serde(default = "default_interest_rate_type")]
+    pub interest_rate_type: String, // ANNUAL, MONTHLY
     pub min_amount: f64,
     pub max_amount: f64,
     pub min_term_months: i32,
@@ -33,6 +35,10 @@ pub struct LoanProduct {
     pub created_at: Option<String>,
 }
 
+fn default_interest_rate_type() -> String {
+    "ANNUAL".to_string()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Loan {
     pub id: Option<i64>,
@@ -41,6 +47,8 @@ pub struct Loan {
     pub loan_number: String,
     pub principal_amount: f64,
     pub annual_interest_rate: f64,
+    #[serde(default = "default_interest_rate_type")]
+    pub interest_rate_type: String, // ANNUAL, MONTHLY
     pub interest_method: String,
     pub term_months: i32,
     pub payment_frequency: String,
@@ -107,12 +115,37 @@ pub struct User {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Expense {
+    pub id: Option<i64>,
+    pub category: String, // OFFICE_SUPPLIES, RENT, UTILITIES, SALARIES, TRAVEL, PETTY_CASH_TOPUP, MISC
+    pub description: String,
+    pub amount: f64,
+    pub expense_date: String,
+    pub payment_method: String, // CASH, BANK_TRANSFER, MOBILE_MONEY, CHECK
+    pub reference: Option<String>,
+    pub status: String, // APPROVED, PENDING_APPROVAL, REJECTED
+    pub created_by: Option<String>,
+    pub approved_by: Option<String>,
+    pub created_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PettyCashSummary {
+    pub total_topup: f64,
+    pub total_cash_spent: f64,
+    pub current_balance: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlatformSettings {
     pub org_name: String,
     pub currency_symbol: String,
     pub default_annual_interest_rate: f64,
     pub default_origination_fee_percent: f64,
-    pub theme: String, // "light", "dark", "system"
+    pub default_interest_rate_type: String, // ANNUAL, MONTHLY
+    pub loan_approval_threshold: f64,        // Loans above this amount require admin approval or flag
+    pub expense_approval_threshold: f64,     // Expenses above this amount require admin approval
+    pub theme: String,                       // "light", "dark", "system"
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -137,6 +170,7 @@ pub struct SyncPayload {
     pub loans: Vec<Loan>,
     pub schedule_items: Vec<ScheduleItem>,
     pub transactions: Vec<Transaction>,
+    pub expenses: Vec<Expense>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

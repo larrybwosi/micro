@@ -45,6 +45,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'products', label: 'Loan Products', icon: Layers, adminOnly: true },
     { id: 'loans', label: 'Loan Management', icon: Banknote, badge: pendingApprovals > 0 ? pendingApprovals : null },
     { id: 'repayments', label: 'Repayments', icon: Receipt },
+    { id: 'expenses', label: 'Expenses & Petty Cash', icon: Receipt },
     { id: 'reports', label: 'Reports & Audit', icon: BarChart3 },
     { id: 'sync', label: 'Network Data Sync', icon: Radio },
     { id: 'settings', label: 'Settings & Customization', icon: Settings, adminOnly: true },
