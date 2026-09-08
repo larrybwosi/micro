@@ -1,0 +1,132 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           BigInt   @id @default(autoincrement())
+  username     String   @unique
+  passwordHash String   @map("password_hash")
+  fullName     String   @map("full_name")
+  role         String   @default("USER")
+  status       String   @default("Active")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("users")
+}
+
+model PlatformSetting {
+  key   String @id
+  value String
+
+  @@map("platform_settings")
+}
+
+model Borrower {
+  id          BigInt   @id @default(autoincrement())
+  firstName   String   @map("first_name")
+  lastName    String   @map("last_name")
+  email       String
+  phone       String
+  nationalId  String   @unique @map("national_id")
+  address     String
+  creditScore Int      @default(700) @map("credit_score")
+  status      String   @default("Active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  loans Loan[]
+
+  @@map("borrowers")
+}
+
+model LoanProduct {
+  id                    BigInt   @id @default(autoincrement())
+  name                  String
+  code                  String   @unique
+  description           String
+  interestMethod        String   @map("interest_method")
+  annualInterestRate    Float    @map("annual_interest_rate")
+  minAmount             Float    @map("min_amount")
+  maxAmount             Float    @map("max_amount")
+  minTermMonths         Int      @map("min_term_months")
+  maxTermMonths         Int      @map("max_term_months")
+  paymentFrequency      String   @map("payment_frequency")
+  originationFeePercent Float    @default(0.0) @map("origination_fee_percent")
+  lateFeePercent        Float    @default(0.0) @map("late_fee_percent")
+  gracePeriodDays       Int      @default(0) @map("grace_period_days")
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  loans Loan[]
+
+  @@map("loan_products")
+}
+
+model Loan {
+  id                 BigInt   @id @default(autoincrement())
+  borrowerId         BigInt   @map("borrower_id")
+  loanProductId      BigInt   @map("loan_product_id")
+  loanNumber         String   @unique @map("loan_number")
+  principalAmount    Float    @map("principal_amount")
+  annualInterestRate Float    @map("annual_interest_rate")
+  interestMethod     String   @map("interest_method")
+  termMonths         Int      @map("term_months")
+  paymentFrequency   String   @map("payment_frequency")
+  originationFee     Float    @default(0.0) @map("origination_fee")
+  status             String
+  applicationDate    String   @map("application_date")
+  approvalDate       String?  @map("approval_date")
+  disbursementDate   String?  @map("disbursement_date")
+  maturityDate       String?  @map("maturity_date")
+  notes              String?
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  borrower      Borrower       @relation(fields: [borrowerId], references: [id], onDelete: Cascade)
+  loanProduct   LoanProduct    @relation(fields: [loanProductId], references: [id], onDelete: Cascade)
+  scheduleItems ScheduleItem[]
+  transactions  Transaction[]
+
+  @@map("loans")
+}
+
+model ScheduleItem {
+  id                BigInt  @id @default(autoincrement())
+  loanId            BigInt  @map("loan_id")
+  installmentNumber Int     @map("installment_number")
+  dueDate           String  @map("due_date")
+  principalDue      Float   @map("principal_due")
+  interestDue       Float   @map("interest_due")
+  feeDue            Float   @default(0.0) @map("fee_due")
+  totalInstallment  Float   @map("total_installment")
+  principalPaid     Float   @default(0.0) @map("principal_paid")
+  interestPaid      Float   @default(0.0) @map("interest_paid")
+  feePaid           Float   @default(0.0) @map("fee_paid")
+  status            String  @default("PENDING")
+  paidDate          String? @map("paid_date")
+
+  loan Loan @relation(fields: [loanId], references: [id], onDelete: Cascade)
+
+  @@map("schedule_items")
+}
+
+model Transaction {
+  id                 BigInt   @id @default(autoincrement())
+  loanId             BigInt   @map("loan_id")
+  receiptNumber      String   @unique @map("receipt_number")
+  transactionDate    String   @map("transaction_date")
+  amount             Float
+  principalComponent Float    @map("principal_component")
+  interestComponent  Float    @map("interest_component")
+  feeComponent       Float    @default(0.0) @map("fee_component")
+  paymentMethod      String   @map("payment_method")
+  reference          String
+  notes              String
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  loan Loan @relation(fields: [loanId], references: [id], onDelete: Cascade)
+
+  @@map("transactions")
+}
