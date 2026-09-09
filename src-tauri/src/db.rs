@@ -58,6 +58,9 @@ pub fn init_db(conn: &Connection) -> Result<()> {
             payment_frequency TEXT NOT NULL,
             origination_fee_percent REAL NOT NULL DEFAULT 0.0,
             late_fee_percent REAL NOT NULL DEFAULT 0.0,
+            fixed_penalty_fee REAL DEFAULT 0.0,
+            penalty_interest_rate REAL DEFAULT 0.0,
+            penalty_type TEXT DEFAULT 'PERCENTAGE',
             grace_period_days INTEGER NOT NULL DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
@@ -146,6 +149,18 @@ pub fn init_db(conn: &Connection) -> Result<()> {
         [],
     );
     let _ = conn.execute(
+        "ALTER TABLE loan_products ADD COLUMN fixed_penalty_fee REAL DEFAULT 0.0",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE loan_products ADD COLUMN penalty_interest_rate REAL DEFAULT 0.0",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE loan_products ADD COLUMN penalty_type TEXT DEFAULT 'PERCENTAGE'",
+        [],
+    );
+    let _ = conn.execute(
         "ALTER TABLE loans ADD COLUMN interest_rate_type TEXT NOT NULL DEFAULT 'ANNUAL'",
         [],
     );
@@ -183,6 +198,23 @@ fn seed_default_data(conn: &Connection) -> Result<()> {
         conn.execute("INSERT INTO platform_settings (key, value) VALUES ('expense_approval_threshold', '10000.0')", [])?;
         conn.execute(
             "INSERT INTO platform_settings (key, value) VALUES ('theme', 'light')",
+            [],
+        )?;
+        conn.execute("INSERT INTO platform_settings (key, value) VALUES ('default_penalty_type', 'PERCENTAGE')", [])?;
+        conn.execute(
+            "INSERT INTO platform_settings (key, value) VALUES ('default_late_fee_percent', '2.0')",
+            [],
+        )?;
+        conn.execute("INSERT INTO platform_settings (key, value) VALUES ('default_fixed_penalty_fee', '0.0')", [])?;
+        conn.execute("INSERT INTO platform_settings (key, value) VALUES ('default_penalty_interest_rate', '0.0')", [])?;
+        conn.execute(
+            "INSERT INTO platform_settings (key, value) VALUES ('default_grace_period_days', '5')",
+            [],
+        )?;
+        conn.execute("INSERT INTO platform_settings (key, value) VALUES ('receipt_header_text', 'MicroFinance Pro MFI - Official Payment Voucher')", [])?;
+        conn.execute("INSERT INTO platform_settings (key, value) VALUES ('receipt_footer_text', 'Thank you for your prompt payment! System Generated Official Electronic Receipt.')", [])?;
+        conn.execute(
+            "INSERT INTO platform_settings (key, value) VALUES ('receipt_logo_url', '')",
             [],
         )?;
     }
@@ -297,6 +329,16 @@ pub fn get_platform_settings(conn: &Connection) -> Result<PlatformSettings> {
     let mut loan_approval_threshold = 50000.0;
     let mut expense_approval_threshold = 10000.0;
     let mut theme = "light".to_string();
+    let mut default_penalty_type = "PERCENTAGE".to_string();
+    let mut default_late_fee_percent = 2.0;
+    let mut default_fixed_penalty_fee = 0.0;
+    let mut default_penalty_interest_rate = 0.0;
+    let mut default_grace_period_days = 5;
+    let mut receipt_header_text = "MicroFinance Pro MFI - Official Payment Voucher".to_string();
+    let mut receipt_footer_text =
+        "Thank you for your prompt payment! System Generated Official Electronic Receipt."
+            .to_string();
+    let mut receipt_logo_url = "".to_string();
 
     for (k, v) in rows.flatten() {
         match k.as_str() {
@@ -314,6 +356,16 @@ pub fn get_platform_settings(conn: &Connection) -> Result<PlatformSettings> {
                 expense_approval_threshold = v.parse().unwrap_or(10000.0)
             }
             "theme" => theme = v,
+            "default_penalty_type" => default_penalty_type = v,
+            "default_late_fee_percent" => default_late_fee_percent = v.parse().unwrap_or(2.0),
+            "default_fixed_penalty_fee" => default_fixed_penalty_fee = v.parse().unwrap_or(0.0),
+            "default_penalty_interest_rate" => {
+                default_penalty_interest_rate = v.parse().unwrap_or(0.0)
+            }
+            "default_grace_period_days" => default_grace_period_days = v.parse().unwrap_or(5),
+            "receipt_header_text" => receipt_header_text = v,
+            "receipt_footer_text" => receipt_footer_text = v,
+            "receipt_logo_url" => receipt_logo_url = v,
             _ => {}
         }
     }
@@ -327,6 +379,14 @@ pub fn get_platform_settings(conn: &Connection) -> Result<PlatformSettings> {
         loan_approval_threshold,
         expense_approval_threshold,
         theme,
+        default_penalty_type: Some(default_penalty_type),
+        default_late_fee_percent: Some(default_late_fee_percent),
+        default_fixed_penalty_fee: Some(default_fixed_penalty_fee),
+        default_penalty_interest_rate: Some(default_penalty_interest_rate),
+        default_grace_period_days: Some(default_grace_period_days),
+        receipt_header_text: Some(receipt_header_text),
+        receipt_footer_text: Some(receipt_footer_text),
+        receipt_logo_url: Some(receipt_logo_url),
     })
 }
 
@@ -339,6 +399,31 @@ pub fn update_platform_settings(conn: &Connection, settings: PlatformSettings) -
     conn.execute("INSERT INTO platform_settings (key, value) VALUES ('loan_approval_threshold', ?1) ON CONFLICT(key) DO UPDATE SET value=?1", params![settings.loan_approval_threshold.to_string()])?;
     conn.execute("INSERT INTO platform_settings (key, value) VALUES ('expense_approval_threshold', ?1) ON CONFLICT(key) DO UPDATE SET value=?1", params![settings.expense_approval_threshold.to_string()])?;
     conn.execute("INSERT INTO platform_settings (key, value) VALUES ('theme', ?1) ON CONFLICT(key) DO UPDATE SET value=?1", params![settings.theme])?;
+
+    if let Some(val) = settings.default_penalty_type {
+        conn.execute("INSERT INTO platform_settings (key, value) VALUES ('default_penalty_type', ?1) ON CONFLICT(key) DO UPDATE SET value=?1", params![val])?;
+    }
+    if let Some(val) = settings.default_late_fee_percent {
+        conn.execute("INSERT INTO platform_settings (key, value) VALUES ('default_late_fee_percent', ?1) ON CONFLICT(key) DO UPDATE SET value=?1", params![val.to_string()])?;
+    }
+    if let Some(val) = settings.default_fixed_penalty_fee {
+        conn.execute("INSERT INTO platform_settings (key, value) VALUES ('default_fixed_penalty_fee', ?1) ON CONFLICT(key) DO UPDATE SET value=?1", params![val.to_string()])?;
+    }
+    if let Some(val) = settings.default_penalty_interest_rate {
+        conn.execute("INSERT INTO platform_settings (key, value) VALUES ('default_penalty_interest_rate', ?1) ON CONFLICT(key) DO UPDATE SET value=?1", params![val.to_string()])?;
+    }
+    if let Some(val) = settings.default_grace_period_days {
+        conn.execute("INSERT INTO platform_settings (key, value) VALUES ('default_grace_period_days', ?1) ON CONFLICT(key) DO UPDATE SET value=?1", params![val.to_string()])?;
+    }
+    if let Some(val) = settings.receipt_header_text {
+        conn.execute("INSERT INTO platform_settings (key, value) VALUES ('receipt_header_text', ?1) ON CONFLICT(key) DO UPDATE SET value=?1", params![val])?;
+    }
+    if let Some(val) = settings.receipt_footer_text {
+        conn.execute("INSERT INTO platform_settings (key, value) VALUES ('receipt_footer_text', ?1) ON CONFLICT(key) DO UPDATE SET value=?1", params![val])?;
+    }
+    if let Some(val) = settings.receipt_logo_url {
+        conn.execute("INSERT INTO platform_settings (key, value) VALUES ('receipt_logo_url', ?1) ON CONFLICT(key) DO UPDATE SET value=?1", params![val])?;
+    }
     Ok(())
 }
 
@@ -466,7 +551,7 @@ pub fn delete_borrower(conn: &Connection, id: i64) -> Result<()> {
 
 // Loan Product Queries
 pub fn get_all_loan_products(conn: &Connection) -> Result<Vec<LoanProduct>> {
-    let mut stmt = conn.prepare("SELECT id, name, code, description, interest_method, annual_interest_rate, interest_rate_type, min_amount, max_amount, min_term_months, max_term_months, payment_frequency, origination_fee_percent, late_fee_percent, grace_period_days, created_at FROM loan_products ORDER BY id DESC")?;
+    let mut stmt = conn.prepare("SELECT id, name, code, description, interest_method, annual_interest_rate, interest_rate_type, min_amount, max_amount, min_term_months, max_term_months, payment_frequency, origination_fee_percent, late_fee_percent, fixed_penalty_fee, penalty_interest_rate, penalty_type, grace_period_days, created_at FROM loan_products ORDER BY id DESC")?;
     let product_iter = stmt.query_map([], |row| {
         Ok(LoanProduct {
             id: Some(row.get(0)?),
@@ -483,8 +568,11 @@ pub fn get_all_loan_products(conn: &Connection) -> Result<Vec<LoanProduct>> {
             payment_frequency: row.get(11)?,
             origination_fee_percent: row.get(12)?,
             late_fee_percent: row.get(13)?,
-            grace_period_days: row.get(14)?,
-            created_at: row.get(15)?,
+            fixed_penalty_fee: row.get(14)?,
+            penalty_interest_rate: row.get(15)?,
+            penalty_type: row.get(16)?,
+            grace_period_days: row.get(17)?,
+            created_at: row.get(18)?,
         })
     })?;
 
@@ -501,13 +589,18 @@ pub fn create_loan_product(conn: &Connection, p: LoanProduct) -> Result<i64> {
     } else {
         p.interest_rate_type.clone()
     };
+    let penalty_type = p.penalty_type.unwrap_or_else(|| "PERCENTAGE".to_string());
+    let fixed_fee = p.fixed_penalty_fee.unwrap_or(0.0);
+    let penalty_rate = p.penalty_interest_rate.unwrap_or(0.0);
+
     conn.execute(
-        "INSERT INTO loan_products (name, code, description, interest_method, annual_interest_rate, interest_rate_type, min_amount, max_amount, min_term_months, max_term_months, payment_frequency, origination_fee_percent, late_fee_percent, grace_period_days)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+        "INSERT INTO loan_products (name, code, description, interest_method, annual_interest_rate, interest_rate_type, min_amount, max_amount, min_term_months, max_term_months, payment_frequency, origination_fee_percent, late_fee_percent, fixed_penalty_fee, penalty_interest_rate, penalty_type, grace_period_days)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
         params![
             p.name, p.code, p.description, p.interest_method, p.annual_interest_rate,
             rate_type, p.min_amount, p.max_amount, p.min_term_months, p.max_term_months,
-            p.payment_frequency, p.origination_fee_percent, p.late_fee_percent, p.grace_period_days
+            p.payment_frequency, p.origination_fee_percent, p.late_fee_percent,
+            fixed_fee, penalty_rate, penalty_type, p.grace_period_days
         ],
     )?;
     Ok(conn.last_insert_rowid())
@@ -519,12 +612,17 @@ pub fn update_loan_product(conn: &Connection, p: LoanProduct) -> Result<()> {
     } else {
         p.interest_rate_type.clone()
     };
+    let penalty_type = p.penalty_type.unwrap_or_else(|| "PERCENTAGE".to_string());
+    let fixed_fee = p.fixed_penalty_fee.unwrap_or(0.0);
+    let penalty_rate = p.penalty_interest_rate.unwrap_or(0.0);
+
     conn.execute(
-        "UPDATE loan_products SET name=?1, code=?2, description=?3, interest_method=?4, annual_interest_rate=?5, interest_rate_type=?6, min_amount=?7, max_amount=?8, min_term_months=?9, max_term_months=?10, payment_frequency=?11, origination_fee_percent=?12, late_fee_percent=?13, grace_period_days=?14 WHERE id=?15",
+        "UPDATE loan_products SET name=?1, code=?2, description=?3, interest_method=?4, annual_interest_rate=?5, interest_rate_type=?6, min_amount=?7, max_amount=?8, min_term_months=?9, max_term_months=?10, payment_frequency=?11, origination_fee_percent=?12, late_fee_percent=?13, fixed_penalty_fee=?14, penalty_interest_rate=?15, penalty_type=?16, grace_period_days=?17 WHERE id=?18",
         params![
             p.name, p.code, p.description, p.interest_method, p.annual_interest_rate,
             rate_type, p.min_amount, p.max_amount, p.min_term_months, p.max_term_months,
-            p.payment_frequency, p.origination_fee_percent, p.late_fee_percent, p.grace_period_days, p.id
+            p.payment_frequency, p.origination_fee_percent, p.late_fee_percent,
+            fixed_fee, penalty_rate, penalty_type, p.grace_period_days, p.id
         ],
     )?;
     Ok(())
@@ -1191,14 +1289,22 @@ pub fn import_sync_data(conn: &Connection, payload: &SyncPayload) -> Result<()> 
         } else {
             p.interest_rate_type.clone()
         };
+        let penalty_type = p
+            .penalty_type
+            .clone()
+            .unwrap_or_else(|| "PERCENTAGE".to_string());
+        let fixed_fee = p.fixed_penalty_fee.unwrap_or(0.0);
+        let penalty_rate = p.penalty_interest_rate.unwrap_or(0.0);
+
         tx.execute(
-            "INSERT INTO loan_products (name, code, description, interest_method, annual_interest_rate, interest_rate_type, min_amount, max_amount, min_term_months, max_term_months, payment_frequency, origination_fee_percent, late_fee_percent, grace_period_days)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
-             ON CONFLICT(code) DO UPDATE SET name=?1, description=?3, interest_method=?4, annual_interest_rate=?5, interest_rate_type=?6, min_amount=?7, max_amount=?8, min_term_months=?9, max_term_months=?10, payment_frequency=?11, origination_fee_percent=?12, late_fee_percent=?13, grace_period_days=?14",
+            "INSERT INTO loan_products (name, code, description, interest_method, annual_interest_rate, interest_rate_type, min_amount, max_amount, min_term_months, max_term_months, payment_frequency, origination_fee_percent, late_fee_percent, fixed_penalty_fee, penalty_interest_rate, penalty_type, grace_period_days)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
+             ON CONFLICT(code) DO UPDATE SET name=?1, description=?3, interest_method=?4, annual_interest_rate=?5, interest_rate_type=?6, min_amount=?7, max_amount=?8, min_term_months=?9, max_term_months=?10, payment_frequency=?11, origination_fee_percent=?12, late_fee_percent=?13, fixed_penalty_fee=?14, penalty_interest_rate=?15, penalty_type=?16, grace_period_days=?17",
             params![
                 p.name, p.code, p.description, p.interest_method, p.annual_interest_rate,
                 rate_type, p.min_amount, p.max_amount, p.min_term_months, p.max_term_months,
-                p.payment_frequency, p.origination_fee_percent, p.late_fee_percent, p.grace_period_days
+                p.payment_frequency, p.origination_fee_percent, p.late_fee_percent,
+                fixed_fee, penalty_rate, penalty_type, p.grace_period_days
             ],
         )?;
     }

@@ -319,7 +319,12 @@ pub fn sync_with_api_engine(
         .post(&target_url)
         .json(&local_payload)
         .send()
-        .map_err(|e| format!("Failed sync request to Sync Engine at {}: {}", target_url, e))?;
+        .map_err(|e| {
+            format!(
+                "Failed sync request to Sync Engine at {}: {}",
+                target_url, e
+            )
+        })?;
 
     if resp.status().is_success() {
         let server_payload = resp

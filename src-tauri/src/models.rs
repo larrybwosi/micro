@@ -31,6 +31,12 @@ pub struct LoanProduct {
     pub payment_frequency: String, // WEEKLY, BIWEEKLY, MONTHLY
     pub origination_fee_percent: f64,
     pub late_fee_percent: f64,
+    #[serde(default)]
+    pub fixed_penalty_fee: Option<f64>,
+    #[serde(default)]
+    pub penalty_interest_rate: Option<f64>,
+    #[serde(default)]
+    pub penalty_type: Option<String>,
     pub grace_period_days: i32,
     pub created_at: Option<String>,
 }
@@ -146,6 +152,22 @@ pub struct PlatformSettings {
     pub loan_approval_threshold: f64, // Loans above this amount require admin approval or flag
     pub expense_approval_threshold: f64, // Expenses above this amount require admin approval
     pub theme: String,                // "light", "dark", "system"
+    #[serde(default)]
+    pub default_penalty_type: Option<String>,
+    #[serde(default)]
+    pub default_late_fee_percent: Option<f64>,
+    #[serde(default)]
+    pub default_fixed_penalty_fee: Option<f64>,
+    #[serde(default)]
+    pub default_penalty_interest_rate: Option<f64>,
+    #[serde(default)]
+    pub default_grace_period_days: Option<i32>,
+    #[serde(default)]
+    pub receipt_header_text: Option<String>,
+    #[serde(default)]
+    pub receipt_footer_text: Option<String>,
+    #[serde(default)]
+    pub receipt_logo_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

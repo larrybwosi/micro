@@ -24,6 +24,14 @@ let mockSettings: PlatformSettings = {
   loan_approval_threshold: 50000.0,
   expense_approval_threshold: 10000.0,
   theme: 'light',
+  default_penalty_type: 'PERCENTAGE',
+  default_late_fee_percent: 2.0,
+  default_fixed_penalty_fee: 0.0,
+  default_penalty_interest_rate: 0.0,
+  default_grace_period_days: 5,
+  receipt_header_text: 'MicroFinance Pro MFI - Official Payment Voucher',
+  receipt_footer_text: 'Thank you for your payment! System Generated Official Electronic Receipt.',
+  receipt_logo_url: '',
 };
 let mockSyncStatus: SyncStatus = {
   mode: 'OFFLINE',
