@@ -33,21 +33,31 @@ jobs:
         shell: bash
         run: |
           git fetch --tags
-          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          ORIGINAL_VERSION=$(node -p "require('./package.json').version")
+          CURRENT_VERSION="$ORIGINAL_VERSION"
           TAG_NAME="v${CURRENT_VERSION}"
-          if [ "${GITHUB_REF_TYPE}" != "tag" ] && (git rev-parse "$TAG_NAME" >/dev/null 2>&1 || git rev-parse "refs/tags/$TAG_NAME" >/dev/null 2>&1); then
-            echo "Tag $TAG_NAME already exists. Bumping patch version..."
-            npm run version:bump patch
-            NEW_VERSION=$(node -p "require('./package.json').version")
-            echo "Bumped version from $CURRENT_VERSION to $NEW_VERSION"
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/Cargo.toml
-            git commit -m "chore: bump version to $NEW_VERSION [skip ci]"
-            git tag "v${NEW_VERSION}"
-            git push origin main --tags || true
+
+          if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
+            while git rev-parse "$TAG_NAME" >/dev/null 2>&1 || git rev-parse "refs/tags/$TAG_NAME" >/dev/null 2>&1; do
+              echo "Tag $TAG_NAME already exists. Bumping patch version..."
+              npm run version:bump patch
+              CURRENT_VERSION=$(node -p "require('./package.json').version")
+              TAG_NAME="v${CURRENT_VERSION}"
+            done
+
+            if [ "$CURRENT_VERSION" != "$ORIGINAL_VERSION" ]; then
+              echo "Bumped version from $ORIGINAL_VERSION to $CURRENT_VERSION"
+              git config user.name "github-actions[bot]"
+              git config user.email "github-actions[bot]@users.noreply.github.com"
+              git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/Cargo.toml
+              git commit -m "chore: bump version to $CURRENT_VERSION [skip ci]"
+              git tag "v${CURRENT_VERSION}"
+              git push origin main --tags || true
+            else
+              echo "Proceeding with version $CURRENT_VERSION"
+            fi
           else
-            echo "Proceeding with version $CURRENT_VERSION"
+            echo "Proceeding with version $CURRENT_VERSION (triggered by tag)"
           fi
 
       - name: Install Rust toolchain
