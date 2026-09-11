@@ -24,6 +24,8 @@ pub struct LoanProduct {
     pub annual_interest_rate: f64,
     #[serde(default = "default_interest_rate_type")]
     pub interest_rate_type: String, // ANNUAL, MONTHLY
+    #[serde(default = "default_interest_type")]
+    pub interest_type: String, // SIMPLE, COMPOUND
     pub min_amount: f64,
     pub max_amount: f64,
     pub min_term_months: i32,
@@ -45,6 +47,10 @@ fn default_interest_rate_type() -> String {
     "ANNUAL".to_string()
 }
 
+fn default_interest_type() -> String {
+    "SIMPLE".to_string()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Loan {
     pub id: Option<i64>,
@@ -55,6 +61,8 @@ pub struct Loan {
     pub annual_interest_rate: f64,
     #[serde(default = "default_interest_rate_type")]
     pub interest_rate_type: String, // ANNUAL, MONTHLY
+    #[serde(default = "default_interest_type")]
+    pub interest_type: String, // SIMPLE, COMPOUND
     pub interest_method: String,
     pub term_months: i32,
     pub payment_frequency: String,
@@ -149,6 +157,8 @@ pub struct PlatformSettings {
     pub default_annual_interest_rate: f64,
     pub default_origination_fee_percent: f64,
     pub default_interest_rate_type: String, // ANNUAL, MONTHLY
+    #[serde(default = "default_interest_type")]
+    pub default_interest_type: String, // SIMPLE, COMPOUND
     pub loan_approval_threshold: f64, // Loans above this amount require admin approval or flag
     pub expense_approval_threshold: f64, // Expenses above this amount require admin approval
     pub theme: String,                // "light", "dark", "system"

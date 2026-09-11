@@ -93,6 +93,7 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
         principal,
         product.annual_interest_rate,
         product.interest_rate_type || 'ANNUAL',
+        product.interest_type || 'SIMPLE',
         term,
         product.interest_method,
         new Date().toISOString().split('T')[0]
@@ -127,6 +128,7 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
       principal_amount: newLoanData.principal_amount,
       annual_interest_rate: product.annual_interest_rate,
       interest_rate_type: product.interest_rate_type || 'ANNUAL',
+      interest_type: product.interest_type || 'SIMPLE',
       interest_method: product.interest_method,
       term_months: newLoanData.term_months,
       payment_frequency: product.payment_frequency,
@@ -279,7 +281,7 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
                     <td className="px-6 py-4">
                       <div className="font-semibold text-slate-800">{loan.product_name}</div>
                       <div className="text-xs text-slate-400 font-normal">
-                        {loan.interest_method.replace('_', ' ')} @ {loan.annual_interest_rate}% {loan.interest_rate_type === 'MONTHLY' ? '/mo' : 'p.a.'}
+                        {loan.interest_method.replace('_', ' ')} ({loan.interest_type || 'SIMPLE'}) @ {loan.annual_interest_rate}% {loan.interest_rate_type === 'MONTHLY' ? '/mo' : 'p.a.'}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -414,7 +416,7 @@ export const LoanManagement: React.FC<LoanManagementProps> = ({ loans, borrowers
                   >
                     {products.map((p) => (
                       <option key={p.id} value={p.id}>
-                        {p.name} ({p.annual_interest_rate}% APR - {p.interest_method})
+                        {p.name} ({p.annual_interest_rate}% {p.interest_rate_type === 'MONTHLY' ? '/mo' : 'APR'} - {p.interest_type || 'SIMPLE'} {p.interest_method.replace('_', ' ')})
                       </option>
                     ))}
                   </select>
