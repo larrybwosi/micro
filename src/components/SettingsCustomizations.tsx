@@ -17,6 +17,7 @@ export function SettingsCustomizations({ currentUser, onSettingsUpdated }: Setti
     default_annual_interest_rate: 12.0,
     default_origination_fee_percent: 1.5,
     default_interest_rate_type: 'ANNUAL',
+    default_interest_type: 'SIMPLE',
     loan_approval_threshold: 50000.0,
     expense_approval_threshold: 10000.0,
     theme: 'light',

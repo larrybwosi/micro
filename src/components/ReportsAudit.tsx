@@ -147,7 +147,7 @@ export const ReportsAudit: React.FC<ReportsAuditProps> = ({ loans, borrowers }) 
                   <tr key={l.id} className="hover:bg-slate-50/50">
                     <td className="px-4 py-3 font-mono font-bold text-blue-600">{l.loan_number}</td>
                     <td className="px-4 py-3 font-semibold text-slate-900">{l.borrower_name}</td>
-                    <td className="px-4 py-3 text-slate-500">{l.interest_method}</td>
+                    <td className="px-4 py-3 text-slate-500">{l.interest_method.replace('_', ' ')} ({l.interest_type || 'SIMPLE'})</td>
                     <td className="px-4 py-3 font-semibold">{formatCurrency(l.principal_amount)}</td>
                     <td className="px-4 py-3">{formatCurrency(l.total_payable || 0)}</td>
                     <td className="px-4 py-3 text-emerald-600 font-semibold">{formatCurrency(l.amount_paid || 0)}</td>

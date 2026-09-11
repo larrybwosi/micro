@@ -19,6 +19,7 @@ export interface LoanProduct {
   interest_method: 'FLAT_RATE' | 'REDUCING_BALANCE' | 'INTEREST_ONLY';
   annual_interest_rate: number;
   interest_rate_type: 'ANNUAL' | 'MONTHLY';
+  interest_type: 'SIMPLE' | 'COMPOUND';
   min_amount: number;
   max_amount: number;
   min_term_months: number;
@@ -41,6 +42,7 @@ export interface Loan {
   principal_amount: number;
   annual_interest_rate: number;
   interest_rate_type: 'ANNUAL' | 'MONTHLY';
+  interest_type: 'SIMPLE' | 'COMPOUND';
   interest_method: 'FLAT_RATE' | 'REDUCING_BALANCE' | 'INTEREST_ONLY';
   term_months: number;
   payment_frequency: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY';
@@ -127,6 +129,7 @@ export interface PlatformSettings {
   default_annual_interest_rate: number;
   default_origination_fee_percent: number;
   default_interest_rate_type: 'ANNUAL' | 'MONTHLY';
+  default_interest_type: 'SIMPLE' | 'COMPOUND';
   loan_approval_threshold: number;
   expense_approval_threshold: number;
   theme: 'light' | 'dark' | 'system';

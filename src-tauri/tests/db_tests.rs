@@ -3,26 +3,40 @@ use microfinance_core::*;
 #[test]
 fn test_schedule_calculations() {
     let flat_schedule =
-        calculate_loan_schedule(1000.0, 12.0, "ANNUAL", 12, "FLAT_RATE", "2026-01-01");
+        calculate_loan_schedule(1000.0, 12.0, "ANNUAL", "SIMPLE", 12, "FLAT_RATE", "2026-01-01");
     assert_eq!(flat_schedule.len(), 12);
     let total_flat_interest: f64 = flat_schedule.iter().map(|s| s.3).sum();
     assert!((total_flat_interest - 120.0).abs() < 0.5);
 
+    // Compound Flat Rate schedule
+    let compound_flat_schedule =
+        calculate_loan_schedule(1000.0, 12.0, "ANNUAL", "COMPOUND", 12, "FLAT_RATE", "2026-01-01");
+    assert_eq!(compound_flat_schedule.len(), 12);
+    let total_compound_flat_interest: f64 = compound_flat_schedule.iter().map(|s| s.3).sum();
+    // 1000 * ((1 + 0.01)^12 - 1) = 126.825
+    assert!((total_compound_flat_interest - 126.83).abs() < 0.5);
+
     // Monthly rate test
     let monthly_flat_schedule =
-        calculate_loan_schedule(1000.0, 1.0, "MONTHLY", 12, "FLAT_RATE", "2026-01-01");
+        calculate_loan_schedule(1000.0, 1.0, "MONTHLY", "SIMPLE", 12, "FLAT_RATE", "2026-01-01");
     assert_eq!(monthly_flat_schedule.len(), 12);
     let monthly_flat_interest: f64 = monthly_flat_schedule.iter().map(|s| s.3).sum();
     assert!((monthly_flat_interest - 120.0).abs() < 0.5);
 
     let emi_schedule =
-        calculate_loan_schedule(1000.0, 12.0, "ANNUAL", 12, "REDUCING_BALANCE", "2026-01-01");
+        calculate_loan_schedule(1000.0, 12.0, "ANNUAL", "COMPOUND", 12, "REDUCING_BALANCE", "2026-01-01");
     assert_eq!(emi_schedule.len(), 12);
     let total_emi_principal: f64 = emi_schedule.iter().map(|s| s.2).sum();
     assert!((total_emi_principal - 1000.0).abs() < 0.5);
 
+    let simple_reducing_schedule =
+        calculate_loan_schedule(1000.0, 12.0, "ANNUAL", "SIMPLE", 12, "REDUCING_BALANCE", "2026-01-01");
+    assert_eq!(simple_reducing_schedule.len(), 12);
+    let total_simple_reducing_principal: f64 = simple_reducing_schedule.iter().map(|s| s.2).sum();
+    assert!((total_simple_reducing_principal - 1000.0).abs() < 0.5);
+
     let bullet_schedule =
-        calculate_loan_schedule(1000.0, 12.0, "ANNUAL", 12, "INTEREST_ONLY", "2026-01-01");
+        calculate_loan_schedule(1000.0, 12.0, "ANNUAL", "SIMPLE", 12, "INTEREST_ONLY", "2026-01-01");
     assert_eq!(bullet_schedule.len(), 12);
     assert_eq!(bullet_schedule[0].2, 0.0);
     assert_eq!(bullet_schedule[11].2, 1000.0);
@@ -55,6 +69,7 @@ fn test_user_and_settings_db() {
         default_annual_interest_rate: 14.5,
         default_origination_fee_percent: 2.0,
         default_interest_rate_type: "ANNUAL".to_string(),
+        default_interest_type: "SIMPLE".to_string(),
         loan_approval_threshold: 50000.0,
         expense_approval_threshold: 10000.0,
         theme: "dark".to_string(),
@@ -174,15 +189,15 @@ fn test_expenses_and_petty_cash() {
 fn test_edge_case_calculations() {
     // 0 principal or term
     let zero_principal =
-        calculate_loan_schedule(0.0, 12.0, "ANNUAL", 12, "FLAT_RATE", "2026-01-01");
+        calculate_loan_schedule(0.0, 12.0, "ANNUAL", "SIMPLE", 12, "FLAT_RATE", "2026-01-01");
     assert!(zero_principal.is_empty());
 
-    let zero_term = calculate_loan_schedule(1000.0, 12.0, "ANNUAL", 0, "FLAT_RATE", "2026-01-01");
+    let zero_term = calculate_loan_schedule(1000.0, 12.0, "ANNUAL", "SIMPLE", 0, "FLAT_RATE", "2026-01-01");
     assert!(zero_term.is_empty());
 
     // 0 interest rate
     let zero_rate =
-        calculate_loan_schedule(1200.0, 0.0, "ANNUAL", 12, "REDUCING_BALANCE", "2026-01-01");
+        calculate_loan_schedule(1200.0, 0.0, "ANNUAL", "SIMPLE", 12, "REDUCING_BALANCE", "2026-01-01");
     assert_eq!(zero_rate.len(), 12);
     for item in &zero_rate {
         assert_eq!(item.3, 0.0); // Interest due is 0

@@ -21,6 +21,7 @@ let mockSettings: PlatformSettings = {
   default_annual_interest_rate: 12.0,
   default_origination_fee_percent: 1.5,
   default_interest_rate_type: 'ANNUAL',
+  default_interest_type: 'SIMPLE',
   loan_approval_threshold: 50000.0,
   expense_approval_threshold: 10000.0,
   theme: 'light',
@@ -109,6 +110,7 @@ function mockInvokeFallback<T>(command: string, args?: Record<string, unknown>):
           const newP = {
             ...p,
             interest_rate_type: p.interest_rate_type || 'ANNUAL',
+            interest_type: p.interest_type || 'SIMPLE',
             id: mockLoanProducts.length + 1,
             created_at: new Date().toISOString()
           };
@@ -164,6 +166,7 @@ function mockInvokeFallback<T>(command: string, args?: Record<string, unknown>):
             id: newId,
             loan_number: loanNum,
             interest_rate_type: loanData.interest_rate_type || 'ANNUAL',
+            interest_type: loanData.interest_type || 'SIMPLE',
             status: 'PENDING_APPROVAL',
             borrower_name: borrower ? `${borrower.first_name} ${borrower.last_name}` : 'Unknown',
             product_name: product ? product.name : 'Unknown',
@@ -356,6 +359,7 @@ function mockInvokeFallback<T>(command: string, args?: Record<string, unknown>):
           const principal = Math.max(0, (args?.principal as number) || 0);
           const rate = Math.max(0, ((args?.annualRate ?? args?.annual_rate) as number) || 0);
           const rateType = ((args?.interestRateType ?? args?.interest_rate_type) as string) || 'ANNUAL';
+          const intType = ((args?.interestType ?? args?.interest_type) as string) || 'SIMPLE';
           const term = Math.max(0, ((args?.termMonths ?? args?.term_months) as number) || 0);
           const method = ((args?.interestMethod ?? args?.interest_method) as string) || 'FLAT_RATE';
           const items: ScheduleItem[] = [];
@@ -366,25 +370,92 @@ function mockInvokeFallback<T>(command: string, args?: Record<string, unknown>):
           }
 
           const r = rateType === 'MONTHLY' ? rate / 100 : (rate / 100) / 12;
-          const monthlyPrincipal = principal / term;
-          const monthlyInterest = principal * r;
+          const isCompound = intType.toLowerCase() === 'compound';
 
-          for (let i = 1; i <= term; i++) {
-            const pDue = method === 'INTEREST_ONLY' ? (i === term ? principal : 0) : monthlyPrincipal;
-            const iDue = monthlyInterest;
-            items.push({
-              loan_id: 0,
-              installment_number: i,
-              due_date: new Date(Date.now() + i * 30 * 24 * 3600 * 1000).toISOString().split('T')[0],
-              principal_due: Math.round(pDue * 100) / 100,
-              interest_due: Math.round(iDue * 100) / 100,
-              fee_due: 0,
-              total_installment: Math.round((pDue + iDue) * 100) / 100,
-              principal_paid: 0,
-              interest_paid: 0,
-              fee_paid: 0,
-              status: 'PENDING',
-            });
+          if (method === 'FLAT_RATE') {
+            const totalInt = isCompound
+              ? principal * (Math.pow(1 + r, term) - 1)
+              : principal * r * term;
+            const monthlyP = principal / term;
+            const monthlyI = totalInt / term;
+            for (let i = 1; i <= term; i++) {
+              items.push({
+                loan_id: 0,
+                installment_number: i,
+                due_date: new Date(Date.now() + i * 30 * 24 * 3600 * 1000).toISOString().split('T')[0],
+                principal_due: Math.round(monthlyP * 100) / 100,
+                interest_due: Math.round(monthlyI * 100) / 100,
+                fee_due: 0,
+                total_installment: Math.round((monthlyP + monthlyI) * 100) / 100,
+                principal_paid: 0,
+                interest_paid: 0,
+                fee_paid: 0,
+                status: 'PENDING',
+              });
+            }
+          } else if (method === 'REDUCING_BALANCE') {
+            if (isCompound) {
+              const factor = Math.pow(1 + r, term);
+              const emi = r > 0 ? (factor - 1 === 0 ? principal / term : (principal * r * factor) / (factor - 1)) : principal / term;
+              let balance = principal;
+              for (let i = 1; i <= term; i++) {
+                const iDue = balance * r;
+                const pDue = i === term ? balance : emi - iDue;
+                balance -= pDue;
+                items.push({
+                  loan_id: 0,
+                  installment_number: i,
+                  due_date: new Date(Date.now() + i * 30 * 24 * 3600 * 1000).toISOString().split('T')[0],
+                  principal_due: Math.round(pDue * 100) / 100,
+                  interest_due: Math.round(iDue * 100) / 100,
+                  fee_due: 0,
+                  total_installment: Math.round((pDue + iDue) * 100) / 100,
+                  principal_paid: 0,
+                  interest_paid: 0,
+                  fee_paid: 0,
+                  status: 'PENDING',
+                });
+              }
+            } else {
+              const monthlyP = principal / term;
+              let balance = principal;
+              for (let i = 1; i <= term; i++) {
+                const iDue = balance * r;
+                const pDue = i === term ? balance : monthlyP;
+                balance -= pDue;
+                items.push({
+                  loan_id: 0,
+                  installment_number: i,
+                  due_date: new Date(Date.now() + i * 30 * 24 * 3600 * 1000).toISOString().split('T')[0],
+                  principal_due: Math.round(pDue * 100) / 100,
+                  interest_due: Math.round(iDue * 100) / 100,
+                  fee_due: 0,
+                  total_installment: Math.round((pDue + iDue) * 100) / 100,
+                  principal_paid: 0,
+                  interest_paid: 0,
+                  fee_paid: 0,
+                  status: 'PENDING',
+                });
+              }
+            }
+          } else if (method === 'INTEREST_ONLY') {
+            for (let i = 1; i <= term; i++) {
+              const iDue = isCompound ? principal * Math.pow(1 + r, i - 1) * r : principal * r;
+              const pDue = i === term ? principal : 0;
+              items.push({
+                loan_id: 0,
+                installment_number: i,
+                due_date: new Date(Date.now() + i * 30 * 24 * 3600 * 1000).toISOString().split('T')[0],
+                principal_due: Math.round(pDue * 100) / 100,
+                interest_due: Math.round(iDue * 100) / 100,
+                fee_due: 0,
+                total_installment: Math.round((pDue + iDue) * 100) / 100,
+                principal_paid: 0,
+                interest_paid: 0,
+                fee_paid: 0,
+                status: 'PENDING',
+              });
+            }
           }
           resolve(items as unknown as T);
           break;
@@ -477,8 +548,8 @@ export const api = {
   getPettyCashSummary: () => invokeTauri<PettyCashSummary>('get_petty_cash_summary_cmd'),
 
   getDashboardStats: () => invokeTauri<DashboardStats>('get_dashboard_stats_cmd'),
-  calculatePreviewSchedule: (principal: number, rate: number, interest_rate_type: string, term_months: number, interest_method: string, start_date: string) =>
-    invokeTauri<ScheduleItem[]>('calculate_preview_schedule_cmd', { principal, rate, interestRateType: interest_rate_type, termMonths: term_months, interestMethod: interest_method, startDate: start_date }),
+  calculatePreviewSchedule: (principal: number, rate: number, interest_rate_type: string, interest_type: string, term_months: number, interest_method: string, start_date: string) =>
+    invokeTauri<ScheduleItem[]>('calculate_preview_schedule_cmd', { principal, rate, interestRateType: interest_rate_type, interestType: interest_type, termMonths: term_months, interestMethod: interest_method, startDate: start_date }),
 
   getSyncStatus: () => invokeTauri<SyncStatus>('get_sync_status_cmd'),
   startHub: () => invokeTauri<SyncStatus>('start_hub_cmd'),

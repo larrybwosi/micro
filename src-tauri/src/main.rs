@@ -263,15 +263,18 @@ fn calculate_preview_schedule_cmd(
     principal: f64,
     rate: f64,
     interest_rate_type: Option<String>,
+    interest_type: Option<String>,
     term_months: i32,
     interest_method: String,
     start_date: String,
 ) -> Result<Vec<ScheduleItem>, String> {
     let rate_type = interest_rate_type.unwrap_or_else(|| "ANNUAL".to_string());
+    let int_type = interest_type.unwrap_or_else(|| "SIMPLE".to_string());
     let schedule = calculate_loan_schedule(
         principal,
         rate,
         &rate_type,
+        &int_type,
         term_months,
         &interest_method,
         &start_date,

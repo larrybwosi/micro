@@ -33,6 +33,7 @@ export const LoanProductsConfigurator: React.FC<LoanProductsConfiguratorProps> =
     interest_method: 'REDUCING_BALANCE',
     annual_interest_rate: 12.0,
     interest_rate_type: 'ANNUAL',
+    interest_type: 'SIMPLE',
     min_amount: 500.0,
     max_amount: 10000.0,
     min_term_months: 3,
@@ -65,6 +66,7 @@ export const LoanProductsConfigurator: React.FC<LoanProductsConfiguratorProps> =
       interest_method: 'REDUCING_BALANCE',
       annual_interest_rate: 12.0,
       interest_rate_type: 'ANNUAL',
+      interest_type: 'SIMPLE',
       min_amount: 500.0,
       max_amount: 10000.0,
       min_term_months: 3,
@@ -138,6 +140,14 @@ export const LoanProductsConfigurator: React.FC<LoanProductsConfiguratorProps> =
     }
   };
 
+  const getInterestTypeBadge = (interestType?: string) => {
+    const type = interestType || 'SIMPLE';
+    if (type === 'COMPOUND') {
+      return <span className="bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold px-2 py-0.5 rounded-xs">Compound Interest</span>;
+    }
+    return <span className="bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold px-2 py-0.5 rounded-xs">Simple Interest</span>;
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -180,9 +190,12 @@ export const LoanProductsConfigurator: React.FC<LoanProductsConfiguratorProps> =
                   <span className="flex items-center gap-1.5 text-slate-500">
                     <Percent className="w-3.5 h-3.5 text-slate-400" /> Interest Rate
                   </span>
-                  <span className="font-bold text-slate-900">
-                    {p.annual_interest_rate}% {p.interest_rate_type === 'MONTHLY' ? 'per month' : 'p.a. (APR)'}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {getInterestTypeBadge(p.interest_type)}
+                    <span className="font-bold text-slate-900">
+                      {p.annual_interest_rate}% {p.interest_rate_type === 'MONTHLY' ? '/mo' : 'p.a.'}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="flex justify-between items-center text-slate-600">
@@ -307,42 +320,85 @@ export const LoanProductsConfigurator: React.FC<LoanProductsConfiguratorProps> =
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-3 bg-slate-50 p-4 rounded-xs border border-slate-200/60">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Interest Engine</label>
-                  <select
-                    value={formData.interest_method}
-                    onChange={(e) => setFormData({ ...formData, interest_method: e.target.value as LoanProduct['interest_method'] })}
-                    className="w-full px-2.5 py-2 text-xs border border-slate-200 rounded-xs bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-semibold"
-                  >
-                    <option value="REDUCING_BALANCE">Reducing Balance (EMI)</option>
-                    <option value="FLAT_RATE">Flat Rate (Simple)</option>
-                    <option value="INTEREST_ONLY">Interest-Only Bullet</option>
-                  </select>
+              <div className="bg-slate-50 p-4 rounded-xs border border-slate-200/60 space-y-3">
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Interest Engine</label>
+                    <select
+                      value={formData.interest_method}
+                      onChange={(e) => setFormData({ ...formData, interest_method: e.target.value as LoanProduct['interest_method'] })}
+                      className="w-full px-2.5 py-2 text-xs border border-slate-200 rounded-xs bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-semibold"
+                    >
+                      <option value="REDUCING_BALANCE">Reducing Balance (EMI)</option>
+                      <option value="FLAT_RATE">Flat Rate</option>
+                      <option value="INTEREST_ONLY">Interest-Only Bullet</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Interest Rate Type</label>
+                    <select
+                      value={formData.interest_rate_type}
+                      onChange={(e) => setFormData({ ...formData, interest_rate_type: e.target.value as 'ANNUAL' | 'MONTHLY' })}
+                      className="w-full px-2.5 py-2 text-xs border border-slate-200 rounded-xs bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-semibold text-blue-700"
+                    >
+                      <option value="ANNUAL">Annual (Fixed APR)</option>
+                      <option value="MONTHLY">Monthly Rate</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Rate ({formData.interest_rate_type === 'MONTHLY' ? '% / Month' : '% APR'})</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      required
+                      value={formData.annual_interest_rate}
+                      onChange={(e) => setFormData({ ...formData, annual_interest_rate: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xs bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-bold"
+                    />
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Interest Rate Type</label>
-                  <select
-                    value={formData.interest_rate_type}
-                    onChange={(e) => setFormData({ ...formData, interest_rate_type: e.target.value as 'ANNUAL' | 'MONTHLY' })}
-                    className="w-full px-2.5 py-2 text-xs border border-slate-200 rounded-xs bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-semibold text-blue-700"
-                  >
-                    <option value="ANNUAL">Annual (Fixed APR)</option>
-                    <option value="MONTHLY">Monthly Rate</option>
-                  </select>
-                </div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Interest Calculation Type</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, interest_type: 'SIMPLE' })}
+                      className={`p-2.5 rounded-xs border text-left transition-all ${
+                        formData.interest_type !== 'COMPOUND'
+                          ? 'border-blue-500 bg-blue-50/50 ring-1 ring-blue-500'
+                          : 'border-slate-200 bg-white hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className="text-xs font-bold text-slate-900">Simple Interest</span>
+                        <span className={`w-2 h-2 rounded-full ${formData.interest_type !== 'COMPOUND' ? 'bg-blue-600' : 'bg-slate-300'}`} />
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-tight">
+                        Calculated strictly on initial principal or remaining linear balance. No interest compounding.
+                      </p>
+                    </button>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Rate ({formData.interest_rate_type === 'MONTHLY' ? '% / Month' : '% APR'})</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    required
-                    value={formData.annual_interest_rate}
-                    onChange={(e) => setFormData({ ...formData, annual_interest_rate: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xs bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-bold"
-                  />
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, interest_type: 'COMPOUND' })}
+                      className={`p-2.5 rounded-xs border text-left transition-all ${
+                        formData.interest_type === 'COMPOUND'
+                          ? 'border-indigo-500 bg-indigo-50/50 ring-1 ring-indigo-500'
+                          : 'border-slate-200 bg-white hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className="text-xs font-bold text-slate-900">Compound Interest</span>
+                        <span className={`w-2 h-2 rounded-full ${formData.interest_type === 'COMPOUND' ? 'bg-indigo-600' : 'bg-slate-300'}`} />
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-tight">
+                        Interest compounds periodically over the tenure based on compounding exponential growth.
+                      </p>
+                    </button>
+                  </div>
                 </div>
               </div>
 
